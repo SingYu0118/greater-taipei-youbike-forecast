@@ -1,0 +1,13 @@
+name = "greater-taipei-youbike-collector"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[r2_buckets]]
+binding = "RAW_BUCKET"
+bucket_name = "greater-taipei-youbike-raw"
+
+[vars]
+NTPC_PAGE_SIZE = "1000"

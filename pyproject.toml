@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "greater-taipei-youbike-forecast"
+version = "0.1.0"
+description = "One-hour-ahead YouBike station availability forecasting system"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "boto3>=1.35,<2",
+  "duckdb>=1.2,<2",
+  "fastapi>=0.115,<1",
+  "holidays>=0.60,<1",
+  "httpx>=0.27,<1",
+  "joblib>=1.4,<2",
+  "lightgbm>=4.5,<5",
+  "numpy>=2.0,<3",
+  "pandas>=2.2,<3",
+  "polars>=1.17,<2",
+  "pyarrow>=18,<20",
+  "pydantic-settings>=2.7,<3",
+  "scikit-learn>=1.6,<2",
+  "shap>=0.46,<1",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=0.25,<1",
+  "pytest-cov>=6,<7",
+  "respx>=0.22,<1",
+  "ruff>=0.9,<1",
+]
+models = [
+  "catboost>=1.2,<2",
+  "optuna>=4.2,<5",
+]
+
+[project.scripts]
+youbike-collect = "youbike_forecast.collectors.cli:main"
+youbike-collect-scheduled = "youbike_forecast.collectors.scheduler:main"
+youbike-build-dataset = "youbike_forecast.pipeline.dataset:main"
+youbike-build-features = "youbike_forecast.features.build:main"
+youbike-train = "youbike_forecast.models.train:main"
+youbike-fetch-mrt = "youbike_forecast.reference.mrt:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/youbike_forecast"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+

@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-11-09T12:06:00.457627+00:00",
+  "source": "Taipei City Data Platform - Taipei Metro Station Data Service",
+  "dataset_page": "https://data.taipei/dataset/detail?id=1eefa68d-7c8d-491b-8e75-66a161947426",
+  "resource_url": "https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=c77e91bf-067c-475e-917b-545ff62b7d76",
+  "license": "Taiwan Government Open Data License 1.0",
+  "latest_source_update": "20260902",
+  "rows": 110,
+  "output": "data/reference/greater_taipei_mrt_stations.csv"
+}
