@@ -28,32 +28,37 @@ WITH snapshots AS (
         is_active,
         fetched_at AS observation_time
     FROM read_parquet($snapshot_glob, union_by_name=true)
+    WHERE fetched_at >= $official_start_at
 ),
 station_dimension AS (
     SELECT
+        source,
         station_id,
         LAST(latitude ORDER BY observation_time) AS latitude,
         LAST(longitude ORDER BY observation_time) AS longitude
     FROM snapshots
-    GROUP BY station_id
+    GROUP BY source, station_id
 ),
 neighbor_ranked AS (
     SELECT
+        origin.source,
         origin.station_id,
+        candidate.source AS neighbor_source,
         candidate.station_id AS neighbor_station_id,
         SQRT(
             POW((origin.latitude - candidate.latitude) * 111000, 2)
             + POW((origin.longitude - candidate.longitude) * 101000, 2)
         ) AS distance_m,
         ROW_NUMBER() OVER (
-            PARTITION BY origin.station_id
+            PARTITION BY origin.source, origin.station_id
             ORDER BY SQRT(
                 POW((origin.latitude - candidate.latitude) * 111000, 2)
                 + POW((origin.longitude - candidate.longitude) * 101000, 2)
             )
         ) AS neighbor_rank
     FROM station_dimension origin
-    JOIN station_dimension candidate ON origin.station_id <> candidate.station_id
+    JOIN station_dimension candidate
+      ON origin.source <> candidate.source OR origin.station_id <> candidate.station_id
     WHERE ABS(origin.latitude - candidate.latitude) < 0.012
       AND ABS(origin.longitude - candidate.longitude) < 0.014
 ),
@@ -62,6 +67,7 @@ neighbor_map AS (
 ),
 neighbor_features AS (
     SELECT
+        current.source,
         current.station_id,
         current.observation_time,
         COUNT(neighbor.station_id) AS neighbor_count_1km,
@@ -69,14 +75,18 @@ neighbor_features AS (
         AVG(neighbor.available_bikes / NULLIF(neighbor.capacity, 0)::DOUBLE)
             AS neighbor_bike_ratio_mean
     FROM snapshots current
-    JOIN neighbor_map mapping ON current.station_id = mapping.station_id
+    JOIN neighbor_map mapping
+      ON current.source = mapping.source
+     AND current.station_id = mapping.station_id
     JOIN snapshots neighbor
-      ON neighbor.station_id = mapping.neighbor_station_id
+      ON neighbor.source = mapping.neighbor_source
+     AND neighbor.station_id = mapping.neighbor_station_id
      AND neighbor.observation_time = current.observation_time
-    GROUP BY current.station_id, current.observation_time
+    GROUP BY current.source, current.station_id, current.observation_time
 ),
 mrt_ranked AS (
     SELECT
+        station.source,
         station.station_id,
         mrt.mrt_station_name AS nearest_mrt_name,
         SQRT(
@@ -84,7 +94,7 @@ mrt_ranked AS (
             + POW((station.longitude - mrt.longitude) * 101000, 2)
         ) AS nearest_mrt_distance_m,
         ROW_NUMBER() OVER (
-            PARTITION BY station.station_id
+            PARTITION BY station.source, station.station_id
             ORDER BY SQRT(
                 POW((station.latitude - mrt.latitude) * 111000, 2)
                 + POW((station.longitude - mrt.longitude) * 101000, 2)
@@ -94,7 +104,7 @@ mrt_ranked AS (
     CROSS JOIN read_csv_auto($mrt_path, header=true) mrt
 ),
 nearest_mrt AS (
-    SELECT station_id, nearest_mrt_name, nearest_mrt_distance_m
+    SELECT source, station_id, nearest_mrt_name, nearest_mrt_distance_m
     FROM mrt_ranked WHERE mrt_rank = 1
 ),
 weather_grids AS (
@@ -103,10 +113,11 @@ weather_grids AS (
 ),
 weather_grid_ranked AS (
     SELECT
+        station.source,
         station.station_id,
         weather.grid_id,
         ROW_NUMBER() OVER (
-            PARTITION BY station.station_id
+            PARTITION BY station.source, station.station_id
             ORDER BY SQRT(
                 POW((station.latitude - weather.grid_latitude) * 111000, 2)
                 + POW((station.longitude - weather.grid_longitude) * 101000, 2)
@@ -116,7 +127,7 @@ weather_grid_ranked AS (
     CROSS JOIN weather_grids weather
 ),
 station_weather_grid AS (
-    SELECT station_id, grid_id FROM weather_grid_ranked WHERE weather_rank = 1
+    SELECT source, station_id, grid_id FROM weather_grid_ranked WHERE weather_rank = 1
 ),
 base AS (
     SELECT
@@ -150,14 +161,19 @@ base AS (
     FROM snapshots snapshot
     LEFT JOIN read_parquet($calendar_path) calendar
       ON CAST(snapshot.observation_time AT TIME ZONE 'Asia/Taipei' AS DATE) = calendar.date
-    LEFT JOIN nearest_mrt mrt ON snapshot.station_id = mrt.station_id
+    LEFT JOIN nearest_mrt mrt
+      ON snapshot.source = mrt.source
+     AND snapshot.station_id = mrt.station_id
     LEFT JOIN neighbor_features neighbor
-      ON snapshot.station_id = neighbor.station_id
+      ON snapshot.source = neighbor.source
+     AND snapshot.station_id = neighbor.station_id
      AND snapshot.observation_time = neighbor.observation_time
     LEFT JOIN station_weather_grid weather_grid
-      ON snapshot.station_id = weather_grid.station_id
+      ON snapshot.source = weather_grid.source
+     AND snapshot.station_id = weather_grid.station_id
     WINDOW station_window AS (
-        PARTITION BY snapshot.station_id ORDER BY epoch(snapshot.observation_time)
+        PARTITION BY snapshot.source, snapshot.station_id
+        ORDER BY epoch(snapshot.observation_time)
         RANGE BETWEEN 3600 PRECEDING AND CURRENT ROW
     )
 ),
@@ -188,16 +204,20 @@ lagged AS (
         lag60.available_bikes AS bikes_lag_60m
     FROM weather_augmented current
     ASOF LEFT JOIN base lag5
-        ON current.station_id = lag5.station_id
+        ON current.source = lag5.source
+        AND current.station_id = lag5.station_id
         AND lag5.observation_time <= current.observation_time - INTERVAL 5 MINUTE
     ASOF LEFT JOIN base lag15
-        ON current.station_id = lag15.station_id
+        ON current.source = lag15.source
+        AND current.station_id = lag15.station_id
         AND lag15.observation_time <= current.observation_time - INTERVAL 15 MINUTE
     ASOF LEFT JOIN base lag30
-        ON current.station_id = lag30.station_id
+        ON current.source = lag30.source
+        AND current.station_id = lag30.station_id
         AND lag30.observation_time <= current.observation_time - INTERVAL 30 MINUTE
     ASOF LEFT JOIN base lag60
-        ON current.station_id = lag60.station_id
+        ON current.source = lag60.source
+        AND current.station_id = lag60.station_id
         AND lag60.observation_time <= current.observation_time - INTERVAL 60 MINUTE
 ),
 labeled AS (
@@ -210,7 +230,8 @@ labeled AS (
             AS target_offset_seconds
     FROM lagged
     ASOF LEFT JOIN base future
-        ON lagged.station_id = future.station_id
+        ON lagged.source = future.source
+        AND lagged.station_id = future.station_id
         AND future.observation_time >= lagged.observation_time + INTERVAL 53 MINUTE
 )
 SELECT
@@ -220,12 +241,20 @@ SELECT
     available_bikes - bikes_lag_30m AS bikes_delta_30m,
     available_bikes - bikes_lag_60m AS bikes_delta_60m,
     CASE WHEN day_of_week IN (0, 6) THEN 1 ELSE 0 END AS is_weekend,
-    CASE WHEN target_bikes <= 2 THEN 1 ELSE 0 END AS target_empty_risk,
-    CASE WHEN target_docks <= 2 THEN 1 ELSE 0 END AS target_full_risk
+    CASE
+        WHEN target_bikes IS NULL OR target_offset_seconds > 420 THEN NULL
+        WHEN target_bikes <= 2 THEN 1 ELSE 0
+    END AS target_empty_risk,
+    CASE
+        WHEN target_docks IS NULL OR target_offset_seconds > 420 THEN NULL
+        WHEN target_docks <= 2 THEN 1 ELSE 0
+    END AS target_full_risk,
+    (
+        target_bikes IS NOT NULL
+        AND target_offset_seconds <= 420
+    ) AS label_is_eligible
 FROM labeled
-WHERE target_bikes IS NOT NULL
-  AND target_offset_seconds <= 420
-  AND is_active
+WHERE is_active
   AND capacity > 0
 """
 
@@ -234,6 +263,7 @@ def build_features(
     processed_dir: Path,
     output_path: Path,
     mrt_path: Path = Path("data/reference/greater_taipei_mrt_stations.csv"),
+    official_start_at: datetime | None = None,
 ) -> dict[str, object]:
     station_root = processed_dir / "station_snapshots"
     weather_root = processed_dir / "weather_forecasts"
@@ -252,15 +282,20 @@ def build_features(
     weather_glob = str(weather_root / "**" / "*.parquet")
     connection = duckdb.connect()
     connection.execute("SET TimeZone='UTC'")
+    effective_start = official_start_at or datetime(1970, 1, 1, tzinfo=UTC)
     coverage = connection.execute(
-        "SELECT MIN(fetched_at), MAX(fetched_at) FROM read_parquet(?)", [snapshot_glob]
+        "SELECT MIN(fetched_at), MAX(fetched_at) FROM read_parquet(?) WHERE fetched_at >= ?",
+        [snapshot_glob, effective_start],
     ).fetchone()
+    if coverage[0] is None or coverage[1] is None:
+        raise ValueError("No station snapshots exist at or after the official collection start")
     _write_calendar(calendar_path, coverage[0].date(), coverage[1].date())
     parameters = {
         "snapshot_glob": snapshot_glob,
         "weather_glob": weather_glob,
         "mrt_path": str(mrt_path),
         "calendar_path": str(calendar_path),
+        "official_start_at": effective_start,
     }
     connection.execute(
         f"COPY ({FEATURE_SQL}) TO '{temporary_path}' (FORMAT PARQUET, COMPRESSION ZSTD)",
@@ -270,7 +305,8 @@ def build_features(
         "SELECT COUNT(*) FROM read_parquet(?)", [str(temporary_path)]
     ).fetchone()[0]
     feature_coverage = connection.execute(
-        "SELECT MIN(observation_time), MAX(observation_time), COUNT(DISTINCT station_id) "
+        "SELECT MIN(observation_time), MAX(observation_time), "
+        "COUNT(DISTINCT source || ':' || station_id) "
         "FROM read_parquet(?)",
         [str(temporary_path)],
     ).fetchone()
@@ -278,6 +314,9 @@ def build_features(
     temporary_path.replace(output_path)
     return {
         "created_at": datetime.now(UTC).isoformat(),
+        "official_start_at": (
+            official_start_at.isoformat() if official_start_at is not None else None
+        ),
         "output": str(output_path),
         "rows": row_count,
         "stations": feature_coverage[2],
@@ -320,7 +359,13 @@ def main() -> None:
     args = parser.parse_args()
     print(
         json.dumps(
-            build_features(args.processed_dir, args.output, args.mrt_reference), indent=2
+            build_features(
+                args.processed_dir,
+                args.output,
+                args.mrt_reference,
+                settings.collection_start_at,
+            ),
+            indent=2,
         )
     )
 

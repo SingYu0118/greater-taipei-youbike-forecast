@@ -16,7 +16,7 @@ An end-to-end machine-learning system that forecasts the number of available bik
 
 The production design separates collection from the user-facing application. A scheduled collector writes immutable source snapshots; deterministic jobs rebuild Parquet datasets and time-safe features; multiple model families compete on expanding future windows; FastAPI serves the selected artifact; and a React application renders the network map, uncertainty, drivers, and scenarios.
 
-The current local collector is running while cloud deployment is intentionally deferred. The application reports `collecting-training-data` until the minimum history and untouched final evaluation gates are met. It never substitutes a demo prediction for a trained result.
+Cloud deployment is intentionally deferred. The local collector is installed but paused until functional approval defines the official collection start. The application reports `collecting-training-data` until the minimum history, completeness, and untouched final evaluation gates are met. It never substitutes a demo prediction for a trained result.
 
 ## Local development
 
@@ -70,6 +70,8 @@ Generated metrics and deployment evidence will be added only after their corresp
 - [Testing strategy](docs/TESTING.md)
 - [Deployment runbook](docs/DEPLOYMENT.md)
 - [Implementation log](docs/IMPLEMENTATION_LOG.md)
+- [Data sources and provenance](docs/SOURCES.md)
+- [Security and operations](docs/SECURITY.md)
 - [Presentation content outline](docs/PRESENTATION_OUTLINE.md)
 
 ## Verified quality gates

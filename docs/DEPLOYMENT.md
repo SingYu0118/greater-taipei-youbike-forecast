@@ -14,6 +14,12 @@ Never commit credentials. Local secrets belong in `.env`; production credentials
 
 ## 3. Cloudflare collector
 
+Cloud collection is optional during local development. On macOS, the versioned LaunchAgent at `infra/launchd/com.singyu.youbike-collector.plist` can keep the local scheduler alive across terminal sessions. Its absolute project path must be updated if the repository moves. Verify it with `make collector-status` and inspect `data/logs/collector.jsonl` for source-level results.
+
+Do not start the official clock during smoke testing. After functional approval, set `COLLECTION_START_AT` in `.env` to an ISO 8601 timestamp with an explicit offset, install or reload the LaunchAgent, and verify that `/api/v1/data/quality` begins at zero with the same official timestamp.
+
+For later cloud deployment, use the following prerequisites and steps.
+
 Prerequisites: Cloudflare account, Wrangler authentication, and an R2 bucket.
 
 ```bash
@@ -21,6 +27,7 @@ cd infra/cloudflare-collector
 cp wrangler.toml.example wrangler.toml
 npx wrangler login
 npx wrangler r2 bucket create greater-taipei-youbike-raw
+npx wrangler secret put COLLECT_TOKEN
 npm run typecheck
 npm run deploy
 ```
@@ -28,7 +35,7 @@ npm run deploy
 After deployment:
 
 1. Verify `/health`.
-2. Trigger one authenticated manual collection or wait for cron.
+2. Trigger one authenticated manual collection with the bearer token or wait for cron. If `COLLECT_TOKEN` is absent, the manual route is disabled.
 3. Confirm three source objects and one manifest in R2.
 4. Confirm the next cron trigger creates new timestamped objects.
 5. Configure Cloudflare notifications for Worker failures.
@@ -36,7 +43,7 @@ After deployment:
 ## 4. Backend
 
 ```bash
-docker build -t greater-taipei-youbike-api .
+docker build --build-arg GIT_COMMIT="$(git rev-parse HEAD)" -t greater-taipei-youbike-api .
 docker run --rm -p 8080:8080 --env-file .env greater-taipei-youbike-api
 ```
 

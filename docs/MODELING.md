@@ -57,11 +57,12 @@ Results are segmented by city, district, station capacity, hour, weekday/weekend
 
 ## 7. Prediction intervals
 
-The model bundle stores a conformal absolute-error quantile estimated from out-of-time residuals. The application will display a bounded interval, not a false point estimate alone. With more history, intervals should be calibrated separately by horizon, capacity band, and demand regime.
+The model bundle stores the 90th percentile of absolute out-of-fold errors from the winning model's rolling validation windows. This calibration never uses the final holdout. The application displays a capacity-bounded interval, not a false point estimate alone. With more history, intervals should be calibrated separately by horizon, capacity band, and demand regime.
 
 ## 8. Explainability
 
-- Global SHAP importance identifies the features used across all predictions.
+- Permutation importance measures the out-of-time holdout score change when a feature is shuffled.
+- Global SHAP importance identifies the features used across sampled holdout predictions.
 - Local SHAP values explain one station forecast.
 - Accumulated local effects or carefully constrained partial dependence shows nonlinear response patterns.
 - A rain what-if changes only forecast weather inputs while holding station state and time fixed.
@@ -77,4 +78,6 @@ No model is labelled production-ready until it:
 3. reports all folds and the untouched final test;
 4. passes feature-availability and target-alignment checks;
 5. exposes its training coverage and model version in the API.
+
+The serving layer enforces these gates. A model artifact alone is insufficient: the evaluation report must show lower final-holdout MAE than persistence, and the official collection window must reach 120 hours with at least 95% snapshot completeness. Otherwise forecast routes return HTTP 503.
 

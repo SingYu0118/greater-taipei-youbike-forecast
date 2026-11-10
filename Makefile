@@ -1,4 +1,4 @@
-.PHONY: install test lint collect collect-scheduled reference dataset features train api frontend
+.PHONY: install test lint collect collect-scheduled collector-status reference dataset features train api frontend
 
 install:
 	python3.12 -m venv .venv
@@ -16,6 +16,9 @@ collect:
 
 collect-scheduled:
 	.venv/bin/python -m youbike_forecast.collectors.scheduler
+
+collector-status:
+	launchctl print gui/$$(id -u)/com.singyu.youbike-collector
 
 reference:
 	.venv/bin/youbike-fetch-mrt

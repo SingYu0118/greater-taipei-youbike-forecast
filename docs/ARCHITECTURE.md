@@ -16,6 +16,8 @@ The system predicts the number of rentable bikes at each Taipei and New Taipei Y
 | Web hosting | Vercel or Cloudflare Pages | Static assets are globally cached and independently deployable. |
 | Scheduled collector | Cloudflare Worker Cron | The five-day collection does not depend on a laptop remaining online. |
 
+Cloud deployment is intentionally deferred until the local functional gates pass. A versioned macOS LaunchAgent is ready to begin the official five-minute collection window afterward; no cloud resource is required for development.
+
 ## 3. Runtime flow
 
 ```text
@@ -57,7 +59,7 @@ The local Python collector uses temporary files, `fsync`, and atomic rename. The
 - `.env` and generated datasets are excluded from Git.
 - The browser never receives R2 credentials.
 - CORS origins are explicit in production.
-- Public endpoints are read-only; manual collection endpoints must be protected before production exposure.
+- Public endpoints are read-only except in-memory what-if inference. The optional manual collection route requires a Worker-secret bearer token and is disabled when the secret is absent.
 
 ## 6. Current implementation status
 
@@ -69,13 +71,14 @@ Implemented and locally verified:
 - Source-specific normalization to one documented station schema.
 - Incremental raw-to-Parquet reconstruction.
 - Expanding-window split utility with a 60-minute purge gap and final holdout.
-- React map application and FastAPI live station endpoint.
+- Four-model competition, out-of-fold prediction interval calibration, subgroup evaluation, and SHAP/permutation driver reports.
+- React map application and evidence-gated FastAPI forecast, metrics, drivers, quality, and what-if endpoints.
 - Python tests, static checks, frontend production build, and Worker typecheck.
 
 Pending evidence gates:
 
-- Five complete days of cloud history.
-- Final model comparison metrics.
-- SHAP results and weather what-if measurements.
+- Five complete days of official history.
+- Real-history final model comparison metrics.
+- Real-history SHAP results and weather what-if measurements.
 - Production URLs and cloud health checks.
 

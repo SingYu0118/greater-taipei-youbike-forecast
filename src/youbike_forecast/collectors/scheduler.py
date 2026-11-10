@@ -8,7 +8,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from youbike_forecast.collectors.client import Collector
+from youbike_forecast.collectors.client import CollectionResult, Collector, PartialCollectionError
 from youbike_forecast.collectors.storage import storage_from_settings
 from youbike_forecast.config import settings
 
@@ -27,14 +27,11 @@ async def run_scheduler(interval_minutes: int, log_path: Path) -> None:
             include_weather = started_at.minute < interval_minutes
             results = await collector.collect_all(include_weather=include_weather)
             entry["status"] = "success"
-            entry["results"] = [
-                {
-                    **asdict(result),
-                    "fetched_at": result.fetched_at.isoformat(),
-                    "stored": asdict(result.stored),
-                }
-                for result in results
-            ]
+            entry["results"] = _serialize_results(results)
+        except PartialCollectionError as error:
+            entry["status"] = "partial_failure"
+            entry["results"] = _serialize_results(error.successful)
+            entry["errors"] = error.failures
         except Exception as error:  # The scheduler must survive a failed run.
             entry["status"] = "failure"
             entry["error"] = f"{type(error).__name__}: {error}"
@@ -51,6 +48,17 @@ async def run_scheduler(interval_minutes: int, log_path: Path) -> None:
             await asyncio.wait_for(stop.wait(), timeout=max((next_run - now).total_seconds(), 1))
         except TimeoutError:
             pass
+
+
+def _serialize_results(results: list[CollectionResult]) -> list[dict[str, object]]:
+    return [
+        {
+            **asdict(result),
+            "fetched_at": result.fetched_at.isoformat(),
+            "stored": asdict(result.stored),
+        }
+        for result in results
+    ]
 
 
 def main() -> None:

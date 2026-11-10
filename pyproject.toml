@@ -36,7 +36,6 @@ dev = [
 ]
 models = [
   "catboost>=1.2,<2",
-  "optuna>=4.2,<5",
 ]
 
 [project.scripts]

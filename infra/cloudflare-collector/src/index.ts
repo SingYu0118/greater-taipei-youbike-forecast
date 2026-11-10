@@ -1,6 +1,7 @@
 interface Env {
   RAW_BUCKET: R2Bucket;
   NTPC_PAGE_SIZE: string;
+  COLLECT_TOKEN?: string;
 }
 
 const TAIPEI_URL = "https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json";
@@ -17,6 +18,10 @@ export default {
       return Response.json({ status: "ok", service: "youbike-collector" });
     }
     if (url.pathname === "/collect" && request.method === "POST") {
+      if (!env.COLLECT_TOKEN) return new Response("Not found", { status: 404 });
+      if (request.headers.get("authorization") !== `Bearer ${env.COLLECT_TOKEN}`) {
+        return new Response("Unauthorized", { status: 401 });
+      }
       await runCollection(env);
       return Response.json({ status: "completed" });
     }

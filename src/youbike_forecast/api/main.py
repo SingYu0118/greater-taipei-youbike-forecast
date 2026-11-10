@@ -1,13 +1,32 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 from youbike_forecast.collectors.client import NEW_TAIPEI_URL, TAIPEI_URL
 from youbike_forecast.config import settings
+from youbike_forecast.models.service import ForecastService, ModelUnavailableError
+from youbike_forecast.pipeline.quality import build_quality_report
+
+forecast_service = ForecastService(
+    settings.model_dir,
+    settings.data_dir / "features" / "station_hour_ahead.parquet",
+    settings.raw_dir,
+    settings.data_dir / "logs" / "collector.jsonl",
+    settings.collection_start_at,
+)
+
+
+class WhatIfRequest(BaseModel):
+    source: Literal["taipei", "new_taipei"]
+    precipitation: float | None = Field(None, ge=0, le=100)
+    precipitation_probability: float | None = Field(None, ge=0, le=100)
+    temperature_2m: float | None = Field(None, ge=-20, le=50)
 
 app = FastAPI(
     title="Greater Taipei YouBike Forecast API",
@@ -25,7 +44,73 @@ app.add_middleware(
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "time": datetime.now(UTC).isoformat(), "model": "not-trained"}
+    return {
+        "status": "ok",
+        "time": datetime.now(UTC).isoformat(),
+        "model": "ready" if forecast_service.is_ready() else "collecting-training-data",
+    }
+
+
+@app.get("/api/v1/forecasts/latest")
+async def latest_forecasts() -> dict:
+    try:
+        forecasts = forecast_service.forecasts()
+        model = forecast_service.metadata()
+        as_of = max(forecast["observation_time"] for forecast in forecasts)
+        return {
+            "as_of": as_of,
+            "count": len(forecasts),
+            "model_status": "ready",
+            "model": model,
+            "stations": forecasts,
+        }
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/model/metrics")
+async def model_metrics() -> dict:
+    try:
+        return forecast_service.metrics()
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/model/drivers")
+async def model_drivers() -> dict:
+    try:
+        return forecast_service.drivers()
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/data/quality")
+async def data_quality() -> dict:
+    return build_quality_report(
+        settings.raw_dir,
+        settings.data_dir / "logs" / "collector.jsonl",
+        settings.collection_start_at,
+    )
+
+
+@app.post("/api/v1/stations/{station_id}/what-if")
+async def station_what_if(station_id: str, request: WhatIfRequest) -> dict:
+    field_mapping = {
+        "precipitation": "forecast_precipitation",
+        "precipitation_probability": "forecast_precipitation_probability",
+        "temperature_2m": "forecast_temperature_2m",
+    }
+    values = request.model_dump(exclude_none=True)
+    source = values.pop("source")
+    overrides = {field_mapping[name]: value for name, value in values.items()}
+    if not overrides:
+        raise HTTPException(status_code=422, detail="At least one scenario value is required")
+    try:
+        return forecast_service.what_if(station_id, overrides, source)
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Station not found") from exc
 
 
 @app.get("/api/v1/stations/live")

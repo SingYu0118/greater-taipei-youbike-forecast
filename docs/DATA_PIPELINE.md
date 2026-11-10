@@ -43,6 +43,8 @@ Validation rejects:
 - rentable-bike counts greater than capacity;
 - unsupported timestamp formats.
 
+Each source request is independent. If one source fails after retries, successful source objects remain stored and the scheduler records a `partial_failure` with both the successful object metadata and sanitized error messages. The next scheduled run proceeds normally.
+
 ## 4. Label alignment
 
 For an observation at time `t`, the target is the same station's rentable-bike count nearest `t + 60 minutes`. The accepted tolerance is plus or minus seven minutes. Samples outside that tolerance are excluded instead of being assigned a misleading label.
@@ -70,6 +72,10 @@ youbike-train
 Each stage fails loudly when its required inputs are missing. Dataset and model manifests record creation time, code version, row counts, time coverage, station coverage, model name, and validation results.
 
 ## 7. Data-quality reporting
+
+Development smoke snapshots are retained for audit but excluded from the official evidence window once `COLLECTION_START_AT` is set. The timestamp is configured only after functional verification; the dashboard and API then calculate coverage and scheduler outcomes from that point forward.
+
+The feature query applies the same lower bound before calculating lags, rolling windows, labels, neighbours, or training coverage. Development observations therefore cannot influence a formally reported model even though their immutable raw objects remain available.
 
 The final report will include:
 

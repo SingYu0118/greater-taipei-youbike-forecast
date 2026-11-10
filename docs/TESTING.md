@@ -9,6 +9,8 @@
 5. Frontend checks: TypeScript build, loading, failure, filtering, selection, desktop and mobile layout.
 6. Deployment smoke tests: public health URL, live station count, freshness, CORS, and model version.
 
+The synthetic end-to-end test trains every candidate, applies all chronological gates, writes the selected model, evaluation, and driver artifacts, serves bounded forecasts, and executes a weather what-if. Synthetic data validates plumbing only; it is never presented as real model performance.
+
 ## Required commands
 
 ```bash
@@ -17,6 +19,8 @@ ruff check src tests
 cd frontend && npm run build
 cd infra/cloudflare-collector && npm run typecheck
 ```
+
+Release checks also run `npm run lint`, `npm audit`, `git diff --check`, and a backend Docker build when Docker is available.
 
 ## ML-specific tests
 

@@ -28,6 +28,17 @@ class CollectionResult:
     stored: StoredObject
 
 
+class PartialCollectionError(RuntimeError):
+    def __init__(
+        self, successful: list[CollectionResult], failures: list[BaseException]
+    ) -> None:
+        self.successful = successful
+        self.failures = [f"{type(failure).__name__}: {failure}" for failure in failures]
+        super().__init__(
+            f"Partial collection failure ({len(successful)} succeeded, {len(failures)} failed)"
+        )
+
+
 class Collector:
     def __init__(self, settings: Settings, storage: RawStorage) -> None:
         self.settings = settings
@@ -133,7 +144,6 @@ class Collector:
         failures = [outcome for outcome in outcomes if isinstance(outcome, BaseException)]
         results = [outcome for outcome in outcomes if isinstance(outcome, CollectionResult)]
         if failures:
-            messages = "; ".join(str(failure) for failure in failures)
-            raise RuntimeError(f"Partial collection failure ({len(results)} succeeded): {messages}")
+            raise PartialCollectionError(results, failures)
         return results
 

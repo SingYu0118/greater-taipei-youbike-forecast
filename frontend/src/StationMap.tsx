@@ -3,12 +3,16 @@ import {
   AttributionControl,
   Map as MapLibreMap,
   NavigationControl,
+  setWorkerUrl,
   type ExpressionSpecification,
   type GeoJSONSource,
   type MapGeoJSONFeature,
   type MapLayerMouseEvent,
 } from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { Station } from "./types";
+
+setWorkerUrl(workerUrl);
 
 type Props = {
   stations: Station[];
@@ -23,7 +27,7 @@ export default function StationMap({ stations, selectedId, onSelect }: Props) {
   const map = useRef<MapLibreMap | null>(null);
   const onSelectRef = useRef(onSelect);
   const stationIndex = useRef(new Map<string, Station>());
-  stationIndex.current = new Map(stations.map((station) => [station.station_id, station]));
+  stationIndex.current = new Map(stations.map((station) => [stationKey(station), station]));
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -71,8 +75,8 @@ export default function StationMap({ stations, selectedId, onSelect }: Props) {
       instance.on("mouseleave", "stations", () => (instance.getCanvas().style.cursor = ""));
       instance.on("click", "stations", (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0] as MapGeoJSONFeature | undefined;
-        const station = feature?.properties?.station_id
-          ? stationIndex.current.get(feature.properties.station_id)
+        const station = feature?.properties?.station_key
+          ? stationIndex.current.get(feature.properties.station_key)
           : undefined;
         if (station) onSelectRef.current(station);
       });
@@ -118,10 +122,16 @@ function featureCollection(stations: Station[]): GeoJSON.FeatureCollection {
       type: "Feature",
       geometry: { type: "Point", coordinates: [station.longitude, station.latitude] },
       properties: {
-        station_id: station.station_id,
-        ratio: station.capacity ? station.available_bikes / station.capacity : 0,
+        station_key: stationKey(station),
+        ratio: station.capacity
+          ? (station.predicted_bikes ?? station.available_bikes) / station.capacity
+          : 0,
       },
     })),
   };
+}
+
+function stationKey(station: Station): string {
+  return `${station.source}:${station.station_id}`;
 }
 

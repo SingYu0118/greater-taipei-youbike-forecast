@@ -66,3 +66,38 @@ async def test_live_station_maps_upstream_failure_to_502() -> None:
     assert response.status_code == 502
     assert response.json() == {"detail": "Official live feed unavailable"}
 
+
+@pytest.mark.asyncio
+async def test_forecasts_return_503_before_model_gate() -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/v1/forecasts/latest")
+    assert response.status_code == 503
+    assert "not available" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_drivers_return_503_before_model_gate() -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/v1/model/drivers")
+    assert response.status_code == 503
+    assert "not available" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_what_if_requires_source_and_scenario_value() -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        missing_source = await client.post(
+            "/api/v1/stations/example/what-if", json={"precipitation": 2}
+        )
+        missing_scenario = await client.post(
+            "/api/v1/stations/example/what-if", json={"source": "taipei"}
+        )
+    assert missing_source.status_code == 422
+    assert missing_scenario.status_code == 422
+

@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+.env
+.env.*
+data
+artifacts
+frontend
+infra
+tests
+catboost_info
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.DS_Store

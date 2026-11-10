@@ -32,10 +32,9 @@
 | `bikes_delta_{5,15,30,60}m` | Current bikes minus the corresponding lag. |
 | `bikes_rolling_mean_60m` | Mean inventory over the trailing hour. |
 | `bikes_rolling_std_60m` | Inventory variability over the trailing hour. |
-| `station_code` | Training-time category code for the station identifier. |
+| `station_code` | Training-time category code for the compound `source:station_id` key. |
 | `district_code` | Training-time category code for administrative district. |
 | `source_code` | Training-time category code for city source. |
-
 | `is_holiday` | Taiwan public-holiday flag generated for the observation date. |
 | `nearest_mrt_distance_m` | Approximate straight-line metres to the nearest official Taipei Metro station coordinate. |
 | `neighbor_count_1km` | Number of up to five nearest stations within one kilometre with a matched snapshot. |
