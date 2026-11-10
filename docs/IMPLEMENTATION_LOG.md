@@ -50,8 +50,9 @@ This log records only observed work. Future entries will include exact commands,
 - Verified desktop and 390-pixel mobile layouts, live map rendering, station search, city filtering, zero horizontal overflow, and zero browser console errors.
 - Passed Python lint and 15 tests, frontend lint and production build, Worker typecheck, and zero-vulnerability npm audits.
 - Started the official evidence window at 2026-11-10 15:51:49 Asia/Taipei and verified the first local run for 1,824 Taipei and 1,622 New Taipei stations.
-- Enabled R2 Standard storage on the free tier, created `greater-taipei-youbike-raw`, and deployed Worker version `619f14aa-ace6-448f-b73f-436d586f5f0b` with a five-minute Cron.
+- Enabled R2 Standard storage on the free tier, created `greater-taipei-youbike-raw`, and deployed Worker version `5f39a239-6e3a-42d5-ac3b-0df9682fff6b` with a five-minute Cron.
 - Added fail-closed Cloudflare cost controls: a fixed stop time, 1 MB object limit, conservative 10,000-write and 8 GB stops, and an 80% warning state.
+- Removed R2 reads from the public health route so unsolicited traffic cannot consume Class B operations.
 - Diagnosed and fixed R2's fixed-length upload requirement, then verified successful 16:50, 16:55, 17:00, and 17:05 Asia/Taipei Cron runs; the 17:00 run also exercised the hourly weather path.
 
 ### Remaining evidence

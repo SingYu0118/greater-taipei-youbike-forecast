@@ -25,7 +25,6 @@ export default {
     if (url.pathname === "/health") {
       const now = new Date();
       const collectionEnd = collectionEndFromEnv(env);
-      const costGuard = await readCostGuard(env);
       return Response.json({
         status: "ok",
         service: "youbike-collector",
@@ -33,7 +32,12 @@ export default {
         collection_end_at: collectionEnd.toISOString(),
         max_object_bytes: maxObjectBytesFromEnv(env),
         cost_guardrail: "scheduled collection stops before fetching or writing after collection_end_at",
-        cost_guard: costGuard,
+        cost_guard: {
+          maximum_writes: MAX_PROJECT_WRITES,
+          maximum_reserved_bytes: MAX_PROJECT_RESERVED_BYTES,
+          warning_ratio: WARNING_RATIO,
+          state_visibility: "internal R2 control object and Worker logs",
+        },
       });
     }
     if (url.pathname === "/collect" && request.method === "POST") {
