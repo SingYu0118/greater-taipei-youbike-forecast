@@ -2,7 +2,7 @@
 
 An end-to-end machine-learning system that forecasts the number of available bikes at every Taipei and New Taipei YouBike station one hour ahead.
 
-> Status: the production-grade collector and application are under active construction. Model results will only be published after the required time-ordered history has been collected and the untouched final holdout has been evaluated.
+> Status: official collection began at 2026-11-10 15:51:49 Asia/Taipei. The local scheduler and a cost-guarded Cloudflare Worker are collecting immutable history. Model results will only be published after the required time-ordered history and untouched final holdout gates pass.
 
 ## System goals
 
@@ -16,7 +16,7 @@ An end-to-end machine-learning system that forecasts the number of available bik
 
 The production design separates collection from the user-facing application. A scheduled collector writes immutable source snapshots; deterministic jobs rebuild Parquet datasets and time-safe features; multiple model families compete on expanding future windows; FastAPI serves the selected artifact; and a React application renders the network map, uncertainty, drivers, and scenarios.
 
-Cloud deployment is intentionally deferred. The local collector is installed but paused until functional approval defines the official collection start. The application reports `collecting-training-data` until the minimum history, completeness, and untouched final evaluation gates are met. It never substitutes a demo prediction for a trained result.
+The Cloudflare Worker collector is deployed at `https://greater-taipei-youbike-collector.singyu-bravetalk.workers.dev` with a five-minute Cron and Standard-class R2 storage. It has a fixed collection deadline, a 1 MB object cap, conservative 10,000-write and 8 GB project stops, and an 80% warning state. The local LaunchAgent remains active as a temporary independent backup. The application reports `collecting-training-data` until the minimum history, completeness, and untouched final evaluation gates are met. It never substitutes a demo prediction for a trained result.
 
 ## Local development
 

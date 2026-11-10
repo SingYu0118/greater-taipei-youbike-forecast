@@ -74,4 +74,9 @@ Deploy `frontend/dist`. Add the public frontend origin to backend `ALLOWED_ORIGI
 - Keep Cloud Run minimum instances at zero.
 - Store raw data compressed and add an R2 lifecycle rule only after the assignment retention requirement is satisfied.
 - Do not poll weather every five minutes; preserve one issue-time forecast per hour.
+- The Cloudflare collector requires `COLLECTION_END_AT` and stops before any fetch or R2 write at that instant.
+- `MAX_OBJECT_BYTES` rejects unexpectedly large upstream payloads before storage and is capped in code at 1 MB.
+- Before each run, `control/cost-guard.json` conservatively reserves five writes and 4 MB. Collection stops before upstream fetches at 10,000 reserved writes or 8 GB, and emits a warning at 80% of either project limit.
+- With a five-minute Cron, the configured five-day window has fewer than 1,500 invocations and 6,000 Class A writes, far below R2's one-million monthly free allowance.
+- Cloudflare budget notifications are alerts, not a guaranteed billing cutoff. The application deadline and payload cap are the enforceable project-level cutoff; remove the Cron after evidence is downloaded.
 

@@ -49,10 +49,14 @@ This log records only observed work. Future entries will include exact commands,
 - Built and health-checked the production container as an unprivileged user; verified HTTP 200 health and HTTP 503 before model publication.
 - Verified desktop and 390-pixel mobile layouts, live map rendering, station search, city filtering, zero horizontal overflow, and zero browser console errors.
 - Passed Python lint and 15 tests, frontend lint and production build, Worker typecheck, and zero-vulnerability npm audits.
+- Started the official evidence window at 2026-11-10 15:51:49 Asia/Taipei and verified the first local run for 1,824 Taipei and 1,622 New Taipei stations.
+- Enabled R2 Standard storage on the free tier, created `greater-taipei-youbike-raw`, and deployed Worker version `619f14aa-ace6-448f-b73f-436d586f5f0b` with a five-minute Cron.
+- Added fail-closed Cloudflare cost controls: a fixed stop time, 1 MB object limit, conservative 10,000-write and 8 GB stops, and an 80% warning state.
+- Diagnosed and fixed R2's fixed-length upload requirement, then verified successful 16:50, 16:55, 17:00, and 17:05 Asia/Taipei Cron runs; the 17:00 run also exercised the hourly weather path.
 
-### Deliberately deferred
+### Remaining evidence
 
-- Official collection start, until the functional review is accepted.
-- Cloud resources and public deployment.
-- Real-history metrics, which cannot exist before the official collection window is complete.
+- Complete at least 120 hours of official collection with at least 95% snapshot completeness.
+- Build the final reproducible dataset and run model selection on real history.
+- Publish final-holdout metrics, drivers, what-if results, production application URLs, and the final presentation.
 

@@ -16,7 +16,7 @@ The system predicts the number of rentable bikes at each Taipei and New Taipei Y
 | Web hosting | Vercel or Cloudflare Pages | Static assets are globally cached and independently deployable. |
 | Scheduled collector | Cloudflare Worker Cron | The five-day collection does not depend on a laptop remaining online. |
 
-Cloud deployment is intentionally deferred until the local functional gates pass. A versioned macOS LaunchAgent is ready to begin the official five-minute collection window afterward; no cloud resource is required for development.
+The official collection window began on 2026-11-10. A Cloudflare Worker Cron writes to Standard-class R2 every five minutes, while the versioned macOS LaunchAgent remains active as a temporary independent backup. The Worker stops automatically after the evidence window and enforces conservative write, storage, and per-object limits before upstream collection.
 
 ## 3. Runtime flow
 
