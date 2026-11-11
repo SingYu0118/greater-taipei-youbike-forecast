@@ -17,6 +17,7 @@ frontend/dist/
 docs-site/build/
 docs-site/.docusaurus/
 docs-site/node_modules/
+.wrangler/
 data/raw/
 data/cloud_raw/
 data/cloud_evidence/

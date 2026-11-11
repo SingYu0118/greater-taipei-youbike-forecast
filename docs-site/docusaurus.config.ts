@@ -8,7 +8,7 @@ const config: Config = {
   title: 'Greater Taipei YouBike Forecast',
   tagline: 'Engineering documentation for one-hour-ahead station forecasting',
   favicon: 'img/favicon.svg',
-  url: 'https://greater-taipei-youbike-forecast-docs.pages.dev',
+  url: 'https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev',
   baseUrl: '/',
   organizationName: 'SingYu0118',
   projectName: 'greater-taipei-youbike-forecast',

@@ -6,6 +6,16 @@ An end-to-end machine-learning system that forecasts the number of available bik
 
 > Status: official collection began at 2026-11-10 15:51:49 Asia/Taipei. The local scheduler and a cost-guarded Cloudflare Worker are collecting immutable history. Model results will only be published after the required time-ordered history and untouched final holdout gates pass.
 
+## Live websites
+
+- Product application: <https://greater-taipei-youbike-app.singyu-bravetalk.workers.dev>
+- English documentation: <https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev>
+- Traditional Chinese documentation: <https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev/zh-Hant/>
+
+The public product uses a same-origin Cloudflare Edge API for current Taipei and New Taipei
+station inventory. It remains in `collecting-training-data` mode until the formal model gate
+passes and never substitutes a placeholder forecast.
+
 ## System goals
 
 - Preserve immutable, timestamped raw API responses.

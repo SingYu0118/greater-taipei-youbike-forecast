@@ -65,6 +65,12 @@ Deploy `frontend/dist`. Add the public frontend origin to backend `ALLOWED_ORIGI
 
 ## 6. Documentation website
 
+Current production URLs:
+
+- [Product application](https://greater-taipei-youbike-app.singyu-bravetalk.workers.dev)
+- [English documentation](https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev)
+- [Traditional Chinese documentation](https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev/zh-Hant/)
+
 The bilingual Docusaurus site lives in `docs-site`. It builds English at `/` and Traditional
 Chinese at `/zh-Hant/`, with the shared documentation routes under `/docs`. The production
 command is `npm ci && npm run build`, and the static output directory is `docs-site/build`.
@@ -74,6 +80,18 @@ as `build`. Set `PRODUCT_APP_URL` to the deployed React application URL when the
 site is built. Set `VITE_DOCS_URL` in the React build environment to the deployed documentation
 URL. These public configuration values create the bidirectional Product ↔ Documentation links;
 they are not credentials.
+
+The public product is deployed as a Cloudflare Worker with Static Assets using
+`infra/app-worker/wrangler.toml`. Its same-origin Edge API serves the live station endpoint while
+the model is collecting data. The formal forecast, metrics, drivers, and what-if endpoints stay
+unavailable until a validated model artifact exists.
+
+With Wrangler authenticated locally, reproducible releases are:
+
+```bash
+make deploy-product
+make deploy-docs
+```
 
 ## 7. Rollback
 

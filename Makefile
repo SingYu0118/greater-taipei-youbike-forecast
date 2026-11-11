@@ -1,4 +1,4 @@
-.PHONY: install test lint collect collect-scheduled collector-status reference sync-r2 dataset features train api frontend docs-install docs docs-build
+.PHONY: install test lint collect collect-scheduled collector-status reference sync-r2 dataset features train api frontend docs-install docs docs-build deploy-product deploy-docs
 
 install:
 	python3.12 -m venv .venv
@@ -49,4 +49,12 @@ docs:
 
 docs-build:
 	cd docs-site && npm run typecheck && npm run build
+
+deploy-product:
+	cd frontend && VITE_DOCS_URL=https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev npm run build
+	./infra/cloudflare-collector/node_modules/.bin/wrangler deploy --config infra/app-worker/wrangler.toml
+
+deploy-docs:
+	cd docs-site && PRODUCT_APP_URL=https://greater-taipei-youbike-app.singyu-bravetalk.workers.dev npm run build
+	./infra/cloudflare-collector/node_modules/.bin/wrangler deploy docs-site/build --name greater-taipei-youbike-docs --compatibility-date 2026-11-11
 

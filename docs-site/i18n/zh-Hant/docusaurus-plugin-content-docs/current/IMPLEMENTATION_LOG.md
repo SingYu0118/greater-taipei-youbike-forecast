@@ -74,6 +74,10 @@
 - 成功重建 production image，確認 Linux container 可載入 XGBoost 3.4.1 與七個 candidate factories。
 - 通過 Python lint 與全部 20 tests，包含七模型合成競賽、artifact serialization、API inference、prediction intervals 與 weather what-if。
 - 重跑 formal trainer，確認正式歷史未達時間覆蓋前會在 fit 候選模型前 fail closed。
+- React 產品與同源即時站點 Edge API 已部署至 `https://greater-taipei-youbike-app.singyu-bravetalk.workers.dev`。
+- 中英雙語 Docusaurus 文件站已部署至 `https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev`。
+- 已驗證產品、英文文件與繁中文件皆回傳 HTTP 200；smoke test 當下公開 Edge API 回傳 3,446 個 normalized live stations。
+- 模型維持 fail-closed 於 `collecting-training-data`；本次部署未發布 preview metrics 或預測。
 
 ### 由證據條件延後，並非遺漏
 

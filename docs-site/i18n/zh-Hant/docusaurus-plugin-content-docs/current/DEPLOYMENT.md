@@ -63,7 +63,22 @@ npm run build
 
 ## 6. 文件網站
 
+目前正式網址：
+
+- [產品 App](https://greater-taipei-youbike-app.singyu-bravetalk.workers.dev)
+- [英文技術文件](https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev)
+- [繁中技術文件](https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev/zh-Hant/)
+
 中英雙語 Docusaurus 網站位於 `docs-site`。英文位於 `/`，繁中位於 `/zh-Hant/`，共用文件 routes 位於 `/docs`。Production command 為 `npm ci && npm run build`，靜態輸出為 `docs-site/build`。Cloudflare Pages 或 Vercel 無需 server 或 runtime secret 即可部署：root directory 設 `docs-site`、build command 設 `npm run build`、output directory 設 `build`。文件站 build 時將 `PRODUCT_APP_URL` 設為已部署的 React App 網址；React build environment 將 `VITE_DOCS_URL` 設為文件站網址。這兩個公開設定建立「產品 ↔ 文件」雙向連結，並非憑證。
+
+公開產品使用 `infra/app-worker/wrangler.toml` 部署為 Cloudflare Worker with Static Assets。同源 Edge API 在資料收集期間提供即時站點；validated model artifact 尚未產生前，正式預測、metrics、drivers 與 what-if endpoints 維持不可用。
+
+本機 Wrangler 完成登入後，可重現發布：
+
+```bash
+make deploy-product
+make deploy-docs
+```
 
 ## 7. Rollback
 

@@ -6,6 +6,14 @@
 
 > 狀態：官方收集始於 2026-11-10 15:51:49 Asia/Taipei。本地 scheduler 與具成本防線的 Cloudflare Worker 正在收集不可變歷史。模型結果只會在時序歷史足夠、且未觸碰的 final holdout 門檻通過後發佈。
 
+## 正式網站
+
+- 產品 App：<https://greater-taipei-youbike-app.singyu-bravetalk.workers.dev>
+- 英文技術文件：<https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev>
+- 繁中技術文件：<https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev/zh-Hant/>
+
+公開產品使用同源 Cloudflare Edge API 讀取台北與新北目前站點庫存。正式模型門檻通過前維持 `collecting-training-data`，絕不以假預測替代模型結果。
+
 ## 系統目標
 
 - 保留有 timestamp 的不可變 raw API responses。

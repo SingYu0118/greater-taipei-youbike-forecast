@@ -81,6 +81,10 @@ This log records only observed work. Future entries will include exact commands,
 - Rebuilt the production image successfully and verified inside the Linux container that XGBoost 3.4.1 imports and all seven candidate factories are available.
 - Passed Python lint and all 20 tests, including the complete synthetic seven-model competition, artifact serialization, API inference, prediction intervals, and weather what-if flow.
 - Re-ran the formal trainer and confirmed that it still fails closed before fitting candidates because the official history has not yet reached the required time coverage.
+- Deployed the React product and same-origin live-station Edge API to `https://greater-taipei-youbike-app.singyu-bravetalk.workers.dev`.
+- Deployed the bilingual Docusaurus site to `https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev`.
+- Verified HTTP 200 for the product, English documentation, and Traditional Chinese documentation; the public Edge API returned 3,446 normalized live stations during the observed smoke test.
+- Kept the model fail-closed in `collecting-training-data`; deployment does not publish preview metrics or forecasts.
 
 ### Deferred by evidence, not omitted
 
