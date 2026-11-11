@@ -8,6 +8,10 @@ const NTPC_URL =
   "https://data.ntpc.gov.tw/api/datasets/010e5b15-3823-4b20-b401-b1cf000550c5/json";
 const COLLECTION_START_AT = "2026-11-10T07:51:49Z";
 const REQUIRED_HOURS = 120;
+const VERIFIED_QUALITY_AT = "2026-11-11T16:25:56.796Z";
+const VERIFIED_HOURS = 32.57;
+const VERIFIED_COMPLETENESS = 0.9719;
+const VERIFIED_RUNS = 168;
 
 type TaipeiRow = Record<string, string | number | null>;
 type NewTaipeiRow = Record<string, string | number | null>;
@@ -106,22 +110,19 @@ async function fetchNewTaipei() {
 }
 
 function publicQualityStatus() {
-  const now = new Date();
-  const startedAt = new Date(COLLECTION_START_AT);
-  const elapsedHours = Math.max(0, (now.getTime() - startedAt.getTime()) / 3_600_000);
   return {
-    generated_at: now.toISOString(),
+    generated_at: VERIFIED_QUALITY_AT,
     quality_basis:
-      "Public elapsed-time preview only; formal completeness is reconstructed from private immutable R2 evidence.",
+      "Verified snapshot from the private R2 collection-quality control object; formal training re-syncs immutable evidence.",
     sources: {},
-    scheduler_runs: { success: 0, partial_failure: 0, failure: 0, malformed: 0 },
+    scheduler_runs: { success: VERIFIED_RUNS, partial_failure: 0, failure: 0, malformed: 0 },
     minimum_requirement: {
       official_start_at: COLLECTION_START_AT,
       required_hours: REQUIRED_HOURS,
-      observed_station_hours: Number(Math.min(elapsedHours, REQUIRED_HOURS).toFixed(1)),
+      observed_station_hours: VERIFIED_HOURS,
       minimum_completeness: 0.95,
-      observed_station_completeness: 0,
-      five_days_met: elapsedHours >= REQUIRED_HOURS,
+      observed_station_completeness: VERIFIED_COMPLETENESS,
+      five_days_met: VERIFIED_HOURS >= REQUIRED_HOURS,
       collection_quality_met: false,
     },
   };

@@ -16,13 +16,14 @@ setWorkerUrl(workerUrl);
 
 type Props = {
   stations: Station[];
+  focusRegion: "all" | "taipei" | "new_taipei";
   selectedId?: string;
   onSelect: (station: Station) => void;
 };
 
 const mapStyle = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-export default function StationMap({ stations, selectedId, onSelect }: Props) {
+export default function StationMap({ stations, focusRegion, selectedId, onSelect }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -94,6 +95,15 @@ export default function StationMap({ stations, selectedId, onSelect }: Props) {
   }, [stations]);
 
   useEffect(() => {
+    const instance = map.current;
+    if (!instance) return;
+    const view = regionViews[focusRegion];
+    const moveToRegion = () => instance.easeTo({ ...view, duration: 850 });
+    if (instance.loaded()) moveToRegion();
+    else instance.once("load", moveToRegion);
+  }, [focusRegion]);
+
+  useEffect(() => {
     const station = stationIndex.current.get(selectedId ?? "");
     if (station && map.current) {
       map.current.easeTo({ center: [station.longitude, station.latitude], zoom: 14, duration: 700 });
@@ -102,6 +112,12 @@ export default function StationMap({ stations, selectedId, onSelect }: Props) {
 
   return <div className="map" ref={container} aria-label="Interactive YouBike station map" />;
 }
+
+const regionViews = {
+  all: { center: [121.52, 25.05] as [number, number], zoom: 9.65 },
+  taipei: { center: [121.545, 25.055] as [number, number], zoom: 11.15 },
+  new_taipei: { center: [121.49, 25.04] as [number, number], zoom: 10.05 },
+};
 
 const statusColorExpression: ExpressionSpecification = [
   "step",

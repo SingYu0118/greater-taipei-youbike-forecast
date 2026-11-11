@@ -25,6 +25,21 @@ Final : [ all development data ----------------------- ] [24h untouched test]
 
 Purge gap 防止訓練尾端 label 跨入驗證期間。
 
+### 72 小時早期診斷
+
+正式資料累積滿 72 小時後，`make early-diagnostic` 會同步不可變更的雲端歷史、重建
+正式資料集，再執行事先固定的早期檢查：前 48
+小時作為訓練期，保留 60 分鐘 purge 避免 target 重疊，第三天則是所有七個模型與
+三個 baseline 共用、完全未參與訓練的測試期。指令只會寫出
+`artifacts/preliminary/early-72h-evaluation.json`，刻意不產生可供 API 發布的模型。
+這能提早確認系統是否學到訊號，但必須標示為 preliminary，不能取代五日 rolling
+validation 與 final holdout。
+
+`make train-early` 則只針對已建好的 feature file 重跑 benchmark。舊觀測可透過
+`--features` 明確傳入，用於 pipeline 開發、預訓練實驗與除錯，報告會
+標示為 `development-only preliminary`。只有正式起始時間後、時間戳可信的資料，才能
+計入正式成績與 production gate。
+
 ## 5. 競爭模型
 
 ### Baselines

@@ -25,6 +25,23 @@ Final : [ all development data ----------------------- ] [24h untouched test]
 
 The purge gap prevents a label at the end of training from reaching into the validation period.
 
+### 72-hour preliminary diagnostic
+
+As soon as 72 verified hours exist, `make early-diagnostic` syncs the immutable cloud history,
+rebuilds the formal dataset, and runs a pre-declared early check: the
+first 48 hours form the training period, a 60-minute purge prevents target overlap, and the
+third day is an untouched test period shared by all seven models and three baselines. The
+command writes `artifacts/preliminary/early-72h-evaluation.json`; it deliberately does not
+write a serving model. This is useful evidence of whether the implementation learns signal,
+but it is labelled preliminary and cannot replace the five-day rolling validation and final
+holdout.
+
+`make train-early` reruns only the final benchmark against an already-built feature file.
+Older observations may be passed explicitly with `--features` for pipeline development,
+pre-training experiments, and debugging. They are reported as `development-only preliminary`.
+Only timestamp-trusted observations collected after the declared official start can support
+the formal score or production gate.
+
 ## 5. Competitors
 
 ### Baselines

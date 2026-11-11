@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Activity, BarChart3, Bike, BookOpen, ChevronRight, CloudRain, Database, Search, Timer, X } from "lucide-react";
+import { Activity, BarChart3, Bike, BookOpen, ChevronRight, CloudRain, Database, MapPin, Search, Timer, X } from "lucide-react";
 import {
   fetchDrivers,
   fetchForecasts,
@@ -87,6 +87,19 @@ function App() {
   const requiredHours = quality?.minimum_requirement.required_hours ?? 120;
   const collectionStarted = Boolean(quality?.minimum_requirement.official_start_at);
   const collectionProgress = Math.min((coverageHours / requiredHours) * 100, 100);
+  const earlyDiagnosticHours = 72;
+  const earlyProgress = Math.min((coverageHours / earlyDiagnosticHours) * 100, 100);
+  const sourceCounts = {
+    all: data?.stations.length ?? 0,
+    taipei: data?.stations.filter((station) => station.source === "taipei").length ?? 0,
+    new_taipei: data?.stations.filter((station) => station.source === "new_taipei").length ?? 0,
+  };
+
+  const chooseRegion = (region: "all" | "taipei" | "new_taipei") => {
+    setSource(region);
+    setSelected(undefined);
+    setQuery("");
+  };
 
   return (
     <div className="app-shell">
@@ -123,10 +136,19 @@ function App() {
         <section className="dashboard-card">
           <div className="controls">
             <label className="search"><Search size={18} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search station or district" /></label>
-            <div className="segmented">
+            <div className="region-switch" role="group" aria-label="Move map to a city">
               {(["all", "taipei", "new_taipei"] as const).map((item) => (
-                <button className={source === item ? "active" : ""} onClick={() => setSource(item)} key={item}>
-                  {item === "all" ? "All" : item === "taipei" ? "Taipei" : "New Taipei"}
+                <button
+                  aria-pressed={source === item}
+                  className={source === item ? "active" : ""}
+                  onClick={() => chooseRegion(item)}
+                  key={item}
+                >
+                  <MapPin size={16} />
+                  <span>
+                    <strong>{item === "all" ? "Greater Taipei" : item === "taipei" ? "Taipei" : "New Taipei"}</strong>
+                    <small>{sourceCounts[item].toLocaleString()} stations</small>
+                  </span>
                 </button>
               ))}
             </div>
@@ -138,6 +160,7 @@ function App() {
             <Suspense fallback={<div className="map-message"><span className="loader" /> Loading map</div>}>
               <StationMap
                 stations={filtered}
+                focusRegion={source}
                 selectedId={selected ? `${selected.source}:${selected.station_id}` : undefined}
                 onSelect={setSelected}
               />
@@ -171,7 +194,19 @@ function App() {
           </div>
         </section>
 
-        {metrics && drivers ? <ModelResults metrics={metrics} drivers={drivers} /> : null}
+        {metrics && drivers ? (
+          <ModelResults metrics={metrics} drivers={drivers} />
+        ) : (
+          <PreliminaryEvidence
+            coverageHours={coverageHours}
+            earlyDiagnosticHours={earlyDiagnosticHours}
+            earlyProgress={earlyProgress}
+            stationCount={data?.count ?? 0}
+            completeness={quality?.minimum_requirement.observed_station_completeness ?? 0}
+            verifiedRuns={quality?.scheduler_runs.success ?? 0}
+            docsUrl={docsUrl}
+          />
+        )}
 
         <section id="methodology" className="explain-section">
           <p className="eyebrow">DESIGNED FOR TRUST</p>
@@ -268,6 +303,68 @@ function ModelResults({ metrics, drivers }: { metrics: ModelMetricsResponse; dri
         ))}
         <small>{drivers.caution}</small>
       </div>
+    </section>
+  );
+}
+
+function PreliminaryEvidence({
+  coverageHours,
+  earlyDiagnosticHours,
+  earlyProgress,
+  stationCount,
+  completeness,
+  verifiedRuns,
+  docsUrl,
+}: {
+  coverageHours: number;
+  earlyDiagnosticHours: number;
+  earlyProgress: number;
+  stationCount: number;
+  completeness: number;
+  verifiedRuns: number;
+  docsUrl: string;
+}) {
+  const remaining = Math.max(earlyDiagnosticHours - coverageHours, 0);
+  const modelingUrl = `${docsUrl.replace(/\/$/, "")}/docs/MODELING`;
+  return (
+    <section className="preliminary-evidence" aria-label="Current model evidence">
+      <div className="evidence-heading">
+        <div>
+          <p className="eyebrow">MODEL EVIDENCE · LIVE STATUS</p>
+          <h2>Results are staged,<br />not hidden.</h2>
+        </div>
+        <p>
+          The network and collection evidence are already measurable. Model scores appear only
+          after a genuinely unseen time window exists—never from a random row split.
+        </p>
+      </div>
+      <div className="evidence-metrics">
+        <ResultMetric value={stationCount ? stationCount.toLocaleString() : "—"} label="LIVE STATIONS" />
+        <ResultMetric value={completeness ? `${(completeness * 100).toFixed(1)}%` : "—"} label="VERIFIED COMPLETENESS" />
+        <ResultMetric value={verifiedRuns ? verifiedRuns.toLocaleString() : "—"} label="VERIFIED CLOUD RUNS" />
+        <ResultMetric value="7 + 3" label="MODELS + BASELINES" />
+      </div>
+      <div className="evaluation-roadmap">
+        <article className="roadmap-active">
+          <span>NOW</span>
+          <strong>Collect and verify</strong>
+          <p>{coverageHours.toFixed(1)} hours of the official window are currently verified.</p>
+        </article>
+        <article>
+          <span>AT 72 HOURS</span>
+          <strong>48h train → day-3 test</strong>
+          <p>Preliminary benchmark on one untouched day. {remaining.toFixed(1)} hours remaining.</p>
+          <div className="early-progress" aria-label={`${earlyProgress.toFixed(0)} percent to early diagnostic`}>
+            <i style={{ width: `${earlyProgress}%` }} />
+          </div>
+        </article>
+        <article>
+          <span>AT 120 HOURS</span>
+          <strong>Formal time validation</strong>
+          <p>Three rolling folds, purge gap, and a final untouched 24-hour holdout.</p>
+        </article>
+      </div>
+      <a className="evidence-link" href={modelingUrl}>Read the validation contract <ChevronRight size={17} /></a>
     </section>
   );
 }
