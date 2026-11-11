@@ -46,6 +46,17 @@ make collect-scheduled
 
 The machine must remain awake and online. Run logs are written to `data/logs/collector.jsonl`.
 
+Sync the private R2 evidence before a formal dataset or model run:
+
+```bash
+make sync-r2
+make dataset
+make features
+make train
+```
+
+R2 credentials remain in `.env`; they are never committed. Preview runs made before the five-day gate are diagnostic only and cannot be published by the serving layer.
+
 ## Data contract
 
 The raw layer stores source responses without rewriting them. Object keys are partitioned by source, UTC date, and UTC hour. Every object name includes its fetch timestamp and content checksum. Normalization preserves the original source, update timestamp, station capacity, available bikes, docks, and New Taipei mechanical/e-bike counts.

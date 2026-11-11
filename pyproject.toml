@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27,<2", "editables>=0.5,<1"]
 build-backend = "hatchling.build"
 
 [project]
@@ -43,6 +43,7 @@ youbike-collect = "youbike_forecast.collectors.cli:main"
 youbike-collect-scheduled = "youbike_forecast.collectors.scheduler:main"
 youbike-build-dataset = "youbike_forecast.pipeline.dataset:main"
 youbike-build-features = "youbike_forecast.features.build:main"
+youbike-sync-r2 = "youbike_forecast.pipeline.r2_sync:main"
 youbike-train = "youbike_forecast.models.train:main"
 youbike-fetch-mrt = "youbike_forecast.reference.mrt:main"
 

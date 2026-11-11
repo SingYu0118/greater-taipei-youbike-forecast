@@ -11,6 +11,7 @@ bucket_name = "greater-taipei-youbike-raw"
 
 [vars]
 NTPC_PAGE_SIZE = "1000"
+COLLECTION_START_AT = "2026-11-10T07:51:49Z"
 COLLECTION_END_AT = "2026-11-15T09:06:00Z"
 MAX_OBJECT_BYTES = "1000000"
 

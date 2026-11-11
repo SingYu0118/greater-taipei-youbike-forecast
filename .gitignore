@@ -15,6 +15,7 @@ frontend/vite.config.js
 frontend/vite.config.d.ts
 frontend/dist/
 data/raw/
+data/cloud_evidence/
 data/processed/
 data/features/
 data/logs/

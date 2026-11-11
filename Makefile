@@ -1,4 +1,4 @@
-.PHONY: install test lint collect collect-scheduled collector-status reference dataset features train api frontend
+.PHONY: install test lint collect collect-scheduled collector-status reference sync-r2 dataset features train api frontend
 
 install:
 	python3.12 -m venv .venv
@@ -22,6 +22,9 @@ collector-status:
 
 reference:
 	.venv/bin/youbike-fetch-mrt
+
+sync-r2:
+	.venv/bin/youbike-sync-r2
 
 dataset:
 	.venv/bin/youbike-build-dataset

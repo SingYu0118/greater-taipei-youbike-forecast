@@ -18,6 +18,8 @@ The system predicts the number of rentable bikes at each Taipei and New Taipei Y
 
 The official collection window began on 2026-11-10. A Cloudflare Worker Cron writes to Standard-class R2 every five minutes, while the versioned macOS LaunchAgent remains active as a temporary independent backup. The Worker stops automatically after the evidence window and enforces conservative write, storage, and per-object limits before upstream collection.
 
+R2 is also the authority for formal completeness. Immutable source objects and per-run manifests remain the audit evidence, while `control/collection-quality.json` is a reconstructable incremental index used for live gate status. The laptop log is diagnostic backup evidence and cannot lower cloud completeness when the machine sleeps.
+
 ## 3. Runtime flow
 
 ```text

@@ -64,16 +64,21 @@ A feature is eligible only if it was available at or before the prediction times
 ## 6. Reproducibility
 
 ```bash
+youbike-sync-r2
 youbike-build-dataset
 youbike-build-features
 youbike-train
 ```
 
-Each stage fails loudly when its required inputs are missing. Dataset and model manifests record creation time, code version, row counts, time coverage, station coverage, model name, and validation results.
+`youbike-sync-r2` requires the S3-compatible endpoint, access key, secret key, and bucket name in `.env`. It paginates all source, manifest, and control objects; validates source gzip content and SHA-256 metadata; writes atomically; and skips unchanged immutable evidence. Each later stage fails loudly when its required inputs are missing. Dataset and model manifests record creation time, code version, row counts, time coverage, station coverage, model name, and validation results.
 
 ## 7. Data-quality reporting
 
 Development smoke snapshots are retained for audit but excluded from the official evidence window once `COLLECTION_START_AT` is set. The timestamp is configured only after functional verification; the dashboard and API then calculate coverage and scheduler outcomes from that point forward.
+
+The authoritative collection quality state is maintained inside the private R2 bucket at `control/collection-quality.json`. On first deployment it reconstructs source counts and timestamps from immutable R2 object keys; every later Cron run updates it incrementally from the same outcomes written to the per-run manifest. Expected counts are measured from the official start at a five-minute station cadence and hourly weather cadence. The state reports observed hours, per-source objects, expected objects, completeness, post-initialization successes and failures, and the five-day/95% gates. Public health checks never read this object, preventing untrusted traffic from consuming R2 operations.
+
+The local LaunchAgent log remains an independent operational backup, not the authoritative completeness source. A sleeping laptop can have a 100% success rate among executed runs while still missing scheduled intervals. After the evidence window closes, final model inputs will be synced from immutable R2 raw objects; local and cloud copies will be deduplicated by object timestamp and checksum before dataset construction. Until that sync occurs, local preview metrics are explicitly non-final.
 
 The feature query applies the same lower bound before calculating lags, rolling windows, labels, neighbours, or training coverage. Development observations therefore cannot influence a formally reported model even though their immutable raw objects remain available.
 

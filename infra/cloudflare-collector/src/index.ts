@@ -1,6 +1,7 @@
 interface Env {
   RAW_BUCKET: R2Bucket;
   NTPC_PAGE_SIZE: string;
+  COLLECTION_START_AT: string;
   COLLECTION_END_AT: string;
   MAX_OBJECT_BYTES: string;
   COLLECT_TOKEN?: string;
@@ -10,9 +11,11 @@ const TAIPEI_URL = "https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/you
 const NTPC_URL = "https://data.ntpc.gov.tw/api/datasets/010e5b15-3823-4b20-b401-b1cf000550c5/json";
 const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
 const COST_GUARD_KEY = "control/cost-guard.json";
+const QUALITY_KEY = "control/collection-quality.json";
+const SOURCE_NAMES = ["taipei", "new_taipei", "weather_forecast"] as const;
 const MAX_PROJECT_WRITES = 10_000;
 const MAX_PROJECT_RESERVED_BYTES = 8_000_000_000;
-const RESERVED_WRITES_PER_RUN = 5;
+const RESERVED_WRITES_PER_RUN = 6;
 const RESERVED_BYTES_PER_RUN = 4_000_000;
 const WARNING_RATIO = 0.8;
 
@@ -57,22 +60,35 @@ async function runCollection(env: Env): Promise<void> {
   const collectionEnd = collectionEndFromEnv(env);
   if (fetchedAt >= collectionEnd) return;
   if (!(await reserveCostBudget(env, fetchedAt))) return;
-  const jobs: Array<Promise<CollectionRecord>> = [
-    collectAndStore(env, "taipei", fetchedAt, fetchJson(TAIPEI_URL)),
-    collectAndStore(env, "new_taipei", fetchedAt, fetchNewTaipei(Number(env.NTPC_PAGE_SIZE || 1000))),
+  const quality = await readOrRebuildQuality(env, fetchedAt);
+  const jobs: CollectionJob[] = [
+    { source: "taipei", pending: collectAndStore(env, "taipei", fetchedAt, fetchJson(TAIPEI_URL)) },
+    {
+      source: "new_taipei",
+      pending: collectAndStore(
+        env,
+        "new_taipei",
+        fetchedAt,
+        fetchNewTaipei(Number(env.NTPC_PAGE_SIZE || 1000)),
+      ),
+    },
   ];
   if (fetchedAt.getUTCMinutes() < 5) {
-    jobs.push(collectAndStore(env, "weather_forecast", fetchedAt, fetchWeather(fetchedAt)));
+    jobs.push({
+      source: "weather_forecast",
+      pending: collectAndStore(env, "weather_forecast", fetchedAt, fetchWeather(fetchedAt)),
+    });
   }
-  const outcomes = await Promise.allSettled(jobs);
+  const settled = await Promise.allSettled(jobs.map((job) => job.pending));
+  const outcomes: CollectionOutcome[] = settled.map((outcome, index) =>
+    outcome.status === "fulfilled"
+      ? { status: "success", ...outcome.value }
+      : { status: "failure", source: jobs[index].source, error: safeError(outcome.reason) },
+  );
   const manifest = {
     fetched_at: fetchedAt.toISOString(),
     duration_basis: "scheduled-trigger",
-    outcomes: outcomes.map((outcome) =>
-      outcome.status === "fulfilled"
-        ? { status: "success", ...outcome.value }
-        : { status: "failure", error: safeError(outcome.reason) },
-    ),
+    outcomes,
   };
   const manifestKey = `manifests/date=${datePart(fetchedAt)}/${compactTimestamp(fetchedAt)}.json`;
   const manifestBody = new TextEncoder().encode(JSON.stringify(manifest));
@@ -82,16 +98,22 @@ async function runCollection(env: Env): Promise<void> {
   await env.RAW_BUCKET.put(manifestKey, manifestBody, {
     httpMetadata: { contentType: "application/json" },
   });
-  if (outcomes.some((outcome) => outcome.status === "rejected")) {
+  await writeQuality(env, applyOutcomes(quality, fetchedAt, outcomes));
+  if (outcomes.some((outcome) => outcome.status === "failure")) {
     throw new Error(`Collection partially failed; inspect ${manifestKey}`);
   }
 }
 
-type CollectionRecord = { source: string; object_key: string; records: number; sha256: string };
+type CollectionRecord = { source: SourceName; object_key: string; records: number; sha256: string };
+type CollectionJob = { source: SourceName; pending: Promise<CollectionRecord> };
+type CollectionOutcome =
+  | ({ status: "success" } & CollectionRecord)
+  | { status: "failure"; source: SourceName; error: string };
+type SourceName = (typeof SOURCE_NAMES)[number];
 
 async function collectAndStore(
   env: Env,
-  source: string,
+  source: SourceName,
   fetchedAt: Date,
   pendingPayload: Promise<unknown>,
 ): Promise<CollectionRecord> {
@@ -173,6 +195,14 @@ function collectionEndFromEnv(env: Env): Date {
   return value;
 }
 
+function collectionStartFromEnv(env: Env): Date {
+  const value = new Date(env.COLLECTION_START_AT);
+  if (!env.COLLECTION_START_AT || Number.isNaN(value.getTime())) {
+    throw new Error("COLLECTION_START_AT must be a valid ISO 8601 timestamp");
+  }
+  return value;
+}
+
 function maxObjectBytesFromEnv(env: Env): number {
   const value = Number(env.MAX_OBJECT_BYTES);
   if (!Number.isInteger(value) || value <= 0 || value > 1_000_000) {
@@ -239,3 +269,183 @@ async function reserveCostBudget(env: Env, fetchedAt: Date): Promise<boolean> {
   if (warning) console.warn("COST_GUARD_WARNING: project usage reservation reached 80% of limit");
   return true;
 }
+
+type SourceQuality = {
+  objects: number;
+  successes_since_tracking: number;
+  failures_since_tracking: number;
+  first_fetched_at: string | null;
+  last_fetched_at: string | null;
+  last_records: number | null;
+  expected_objects: number;
+  completeness: number;
+};
+
+type CollectionQuality = {
+  official_start_at: string;
+  initialized_at: string;
+  updated_at: string;
+  reconstruction_basis: string;
+  historical_manifests: number;
+  tracked_runs: number;
+  complete_runs_since_tracking: number;
+  partial_failure_runs_since_tracking: number;
+  observed_hours: number;
+  required_hours: number;
+  five_days_met: boolean;
+  minimum_station_completeness: number;
+  minimum_required_completeness: number;
+  collection_quality_met: boolean;
+  sources: Record<SourceName, SourceQuality>;
+};
+
+async function readOrRebuildQuality(env: Env, at: Date): Promise<CollectionQuality> {
+  const object = await env.RAW_BUCKET.get(QUALITY_KEY);
+  if (object) {
+    try {
+      return await object.json<CollectionQuality>();
+    } catch {
+      throw new Error("Collection quality state is malformed; collection stopped safely");
+    }
+  }
+  const start = collectionStartFromEnv(env);
+  const sourceEntries = await Promise.all(
+    SOURCE_NAMES.map(async (source) => [source, await reconstructSourceQuality(env, source, start, at)] as const),
+  );
+  const historicalManifests = await countObjects(env, "manifests/", start);
+  return finalizeQuality(
+    {
+      official_start_at: start.toISOString(),
+      initialized_at: at.toISOString(),
+      updated_at: at.toISOString(),
+      reconstruction_basis: "R2 immutable object keys; per-run manifests retained for failure audit",
+      historical_manifests: historicalManifests,
+      tracked_runs: 0,
+      complete_runs_since_tracking: 0,
+      partial_failure_runs_since_tracking: 0,
+      observed_hours: 0,
+      required_hours: 120,
+      five_days_met: false,
+      minimum_station_completeness: 0,
+      minimum_required_completeness: 0.95,
+      collection_quality_met: false,
+      sources: Object.fromEntries(sourceEntries) as Record<SourceName, SourceQuality>,
+    },
+    at,
+  );
+}
+
+async function reconstructSourceQuality(
+  env: Env,
+  source: SourceName,
+  start: Date,
+  at: Date,
+): Promise<SourceQuality> {
+  const timestamps: Date[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await env.RAW_BUCKET.list({ prefix: `source=${source}/`, cursor, limit: 1000 });
+    for (const object of page.objects) {
+      const timestamp = timestampFromObjectKey(object.key);
+      if (timestamp && timestamp >= start) timestamps.push(timestamp);
+    }
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  timestamps.sort((left, right) => left.getTime() - right.getTime());
+  return {
+    objects: timestamps.length,
+    successes_since_tracking: 0,
+    failures_since_tracking: 0,
+    first_fetched_at: timestamps[0]?.toISOString() ?? null,
+    last_fetched_at: timestamps.at(-1)?.toISOString() ?? null,
+    last_records: null,
+    expected_objects: expectedObjects(source, start, at),
+    completeness: 0,
+  };
+}
+
+async function countObjects(env: Env, prefix: string, start: Date): Promise<number> {
+  let count = 0;
+  let cursor: string | undefined;
+  do {
+    const page = await env.RAW_BUCKET.list({ prefix, cursor, limit: 1000 });
+    count += page.objects.filter((object) => {
+      const timestamp = timestampFromObjectKey(object.key);
+      return timestamp !== null && timestamp >= start;
+    }).length;
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return count;
+}
+
+function applyOutcomes(
+  quality: CollectionQuality,
+  fetchedAt: Date,
+  outcomes: CollectionOutcome[],
+): CollectionQuality {
+  const start = new Date(quality.official_start_at);
+  const complete = outcomes.every((outcome) => outcome.status === "success");
+  quality.tracked_runs += 1;
+  if (complete) quality.complete_runs_since_tracking += 1;
+  else quality.partial_failure_runs_since_tracking += 1;
+  for (const outcome of outcomes) {
+    const source = quality.sources[outcome.source];
+    if (outcome.status === "success") {
+      source.objects += 1;
+      source.successes_since_tracking += 1;
+      source.first_fetched_at ??= fetchedAt.toISOString();
+      source.last_fetched_at = fetchedAt.toISOString();
+      source.last_records = outcome.records;
+    } else {
+      source.failures_since_tracking += 1;
+    }
+    source.expected_objects = expectedObjects(outcome.source, start, fetchedAt);
+  }
+  return finalizeQuality(quality, fetchedAt);
+}
+
+function finalizeQuality(quality: CollectionQuality, at: Date): CollectionQuality {
+  const start = new Date(quality.official_start_at);
+  quality.updated_at = at.toISOString();
+  quality.observed_hours = round((at.getTime() - start.getTime()) / 3_600_000, 2);
+  quality.five_days_met = quality.observed_hours >= quality.required_hours;
+  for (const source of SOURCE_NAMES) {
+    const summary = quality.sources[source];
+    summary.expected_objects = expectedObjects(source, start, at);
+    summary.completeness = summary.expected_objects
+      ? round(Math.min(summary.objects / summary.expected_objects, 1), 4)
+      : 0;
+  }
+  quality.minimum_station_completeness = Math.min(
+    quality.sources.taipei.completeness,
+    quality.sources.new_taipei.completeness,
+  );
+  quality.collection_quality_met =
+    quality.five_days_met &&
+    quality.minimum_station_completeness >= quality.minimum_required_completeness;
+  return quality;
+}
+
+async function writeQuality(env: Env, quality: CollectionQuality): Promise<void> {
+  await env.RAW_BUCKET.put(QUALITY_KEY, JSON.stringify(quality), {
+    httpMetadata: { contentType: "application/json" },
+  });
+}
+
+function expectedObjects(source: SourceName, start: Date, at: Date): number {
+  const cadenceMilliseconds = source === "weather_forecast" ? 3_600_000 : 300_000;
+  const firstExpected = Math.ceil(start.getTime() / cadenceMilliseconds) * cadenceMilliseconds;
+  if (at.getTime() < firstExpected) return 0;
+  return Math.floor((at.getTime() - firstExpected) / cadenceMilliseconds) + 1;
+}
+
+function timestampFromObjectKey(key: string): Date | null {
+  const match = key.match(/(\d{8}T\d{6}(?:\.\d+)?Z)/);
+  if (!match) return null;
+  const compact = match[1];
+  const normalized = `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}T${compact.slice(9, 11)}:${compact.slice(11, 13)}:${compact.slice(13)}`;
+  const value = new Date(normalized);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+const round = (value: number, digits: number) => Number(value.toFixed(digits));

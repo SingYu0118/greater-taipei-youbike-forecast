@@ -40,6 +40,8 @@ After deployment:
 4. Confirm the next cron trigger creates new timestamped objects.
 5. Configure Cloudflare notifications for Worker failures.
 
+For reproducible model training, create a separate R2 S3 API token with Object Read permission restricted to `greater-taipei-youbike-raw`. Put its endpoint, access key ID, secret access key, and bucket name only in local `.env`, then run `make sync-r2`. Do not reuse the Wrangler OAuth token or grant write permission to the training pipeline.
+
 ## 4. Backend
 
 ```bash
@@ -76,7 +78,7 @@ Deploy `frontend/dist`. Add the public frontend origin to backend `ALLOWED_ORIGI
 - Do not poll weather every five minutes; preserve one issue-time forecast per hour.
 - The Cloudflare collector requires `COLLECTION_END_AT` and stops before any fetch or R2 write at that instant.
 - `MAX_OBJECT_BYTES` rejects unexpectedly large upstream payloads before storage and is capped in code at 1 MB.
-- Before each run, `control/cost-guard.json` conservatively reserves five writes and 4 MB. Collection stops before upstream fetches at 10,000 reserved writes or 8 GB, and emits a warning at 80% of either project limit.
+- Before each run, `control/cost-guard.json` conservatively reserves six writes and 4 MB, including the collection-quality state update. Collection stops before upstream fetches at 10,000 reserved writes or 8 GB, and emits a warning at 80% of either project limit.
 - The public health route performs no R2 operation, so arbitrary health traffic cannot consume billable Class B reads. Detailed guard state remains in the internal control object and Worker logs.
 - With a five-minute Cron, the configured five-day window has fewer than 1,500 invocations and 6,000 Class A writes, far below R2's one-million monthly free allowance.
 - Cloudflare budget notifications are alerts, not a guaranteed billing cutoff. The application deadline and payload cap are the enforceable project-level cutoff; remove the Cron after evidence is downloaded.
