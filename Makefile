@@ -1,4 +1,4 @@
-.PHONY: install test lint collect collect-scheduled collector-status reference sync-r2 dataset features train api frontend
+.PHONY: install test lint collect collect-scheduled collector-status reference sync-r2 dataset features train api frontend docs-install docs docs-build
 
 install:
 	python3.12 -m venv .venv
@@ -40,4 +40,13 @@ api:
 
 frontend:
 	cd frontend && npm run dev
+
+docs-install:
+	cd docs-site && npm install
+
+docs:
+	cd docs-site && npm run start
+
+docs-build:
+	cd docs-site && npm run typecheck && npm run build
 

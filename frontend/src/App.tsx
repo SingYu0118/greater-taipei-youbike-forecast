@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Activity, BarChart3, Bike, ChevronRight, CloudRain, Database, Search, Timer, X } from "lucide-react";
+import { Activity, BarChart3, Bike, BookOpen, ChevronRight, CloudRain, Database, Search, Timer, X } from "lucide-react";
 import {
   fetchDrivers,
   fetchForecasts,
@@ -22,6 +22,7 @@ import type {
 const StationMap = lazy(() => import("./StationMap"));
 
 function App() {
+  const docsUrl = import.meta.env.VITE_DOCS_URL ?? "http://localhost:3000";
   const [data, setData] = useState<LiveResponse>();
   const [health, setHealth] = useState<HealthResponse>();
   const [quality, setQuality] = useState<QualityResponse>();
@@ -95,8 +96,11 @@ function App() {
           <span>VELOCAST</span>
         </a>
         <div className="live-state"><span className="pulse" /> LIVE NETWORK</div>
-        <div className="model-state">
-          <Database size={15} /> MODEL STATUS: {health?.model === "ready" ? "READY" : "COLLECTING"}
+        <div className="top-actions">
+          <a className="docs-link" href={docsUrl}><BookOpen size={15} /> DOCUMENTATION</a>
+          <div className="model-state">
+            <Database size={15} /> MODEL STATUS: {health?.model === "ready" ? "READY" : "COLLECTING"}
+          </div>
         </div>
       </header>
 

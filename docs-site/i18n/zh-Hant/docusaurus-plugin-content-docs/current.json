@@ -1,0 +1,22 @@
+{
+  "version.label": {
+    "message": "目前版本",
+    "description": "The label for version current"
+  },
+  "sidebar.technicalSidebar.category.System design": {
+    "message": "系統設計",
+    "description": "The label for category 'System design' in sidebar 'technicalSidebar'"
+  },
+  "sidebar.technicalSidebar.category.Modeling and evaluation": {
+    "message": "模型與評估",
+    "description": "The label for category 'Modeling and evaluation' in sidebar 'technicalSidebar'"
+  },
+  "sidebar.technicalSidebar.category.Application and operations": {
+    "message": "應用與營運",
+    "description": "The label for category 'Application and operations' in sidebar 'technicalSidebar'"
+  },
+  "sidebar.technicalSidebar.category.Delivery evidence": {
+    "message": "交付證據",
+    "description": "The label for category 'Delivery evidence' in sidebar 'technicalSidebar'"
+  }
+}

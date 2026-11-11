@@ -1,0 +1,30 @@
+{
+  "title": {
+    "message": "YouBike 預測技術文件",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "YouBike Forecast",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Documentation": {
+    "message": "技術文件",
+    "description": "Navbar item with label Documentation"
+  },
+  "item.label.Modeling": {
+    "message": "模型驗證",
+    "description": "Navbar item with label Modeling"
+  },
+  "item.label.API": {
+    "message": "API",
+    "description": "Navbar item with label API"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  },
+  "item.label.Product": {
+    "message": "產品 App",
+    "description": "Navbar item with label Product"
+  }
+}

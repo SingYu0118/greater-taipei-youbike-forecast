@@ -13,6 +13,7 @@ The system predicts the number of rentable bikes at each Taipei and New Taipei Y
 | Local analytics | Partitioned Parquet with DuckDB and Polars | Efficient for millions of snapshot rows without operating a database server. |
 | Model service | Python FastAPI on Google Cloud Run | Native Python model loading, scale-to-zero, documented OpenAPI contract. |
 | Web application | React, TypeScript, MapLibre | More product-quality interaction and visual control than a notebook-style UI. |
+| Documentation application | Docusaurus with bilingual local search | Versioned English and Traditional Chinese guidance remains deployable as a static site. |
 | Web hosting | Vercel or Cloudflare Pages | Static assets are globally cached and independently deployable. |
 | Scheduled collector | Cloudflare Worker Cron | The five-day collection does not depend on a laptop remaining online. |
 
@@ -47,6 +48,10 @@ Open-Meteo forecast ------+       | retries, timeouts, validation
                           versioned model bundle
                                   |
                       FastAPI <----> React dashboard
+                                         ^     |
+                       PRODUCT_APP_URL   |     | VITE_DOCS_URL
+                                         |     v
+                                Docusaurus documentation
 ```
 
 ## 4. Failure boundaries
@@ -75,6 +80,7 @@ Implemented and locally verified:
 - Expanding-window split utility with a 60-minute purge gap and final holdout.
 - Seven-model competition, out-of-fold prediction interval calibration, subgroup evaluation, and SHAP/permutation driver reports.
 - React map application and evidence-gated FastAPI forecast, metrics, drivers, quality, and what-if endpoints.
+- Bilingual, searchable Docusaurus documentation with bidirectional Product ↔ Documentation navigation.
 - Python tests, static checks, frontend production build, and Worker typecheck.
 
 Pending evidence gates:

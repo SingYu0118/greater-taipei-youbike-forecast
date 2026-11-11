@@ -1,5 +1,7 @@
 # Greater Taipei YouBike Forecast
 
+[English](README.md) | [繁體中文](README.zh-TW.md)
+
 An end-to-end machine-learning system that forecasts the number of available bikes at every Taipei and New Taipei YouBike station one hour ahead.
 
 > Status: official collection began at 2026-11-10 15:51:49 Asia/Taipei. The local scheduler and a cost-guarded Cloudflare Worker are collecting immutable history. Model results will only be published after the required time-ordered history and untouched final holdout gates pass.
@@ -38,6 +40,21 @@ make frontend
 
 Then open `http://localhost:5173` and API documentation at `http://localhost:8000/docs`.
 
+Run the bilingual documentation website:
+
+```bash
+make docs-install
+make docs
+```
+
+Open `http://localhost:3000`. The site provides categorized left navigation, local full-text
+search, dark/light modes, responsive layouts, and an English/Traditional Chinese switch. A
+production build is written to `docs-site/build` by `make docs-build`.
+
+The React product and documentation site link to each other. Local defaults are
+`http://localhost:5173` and `http://localhost:3000`; deployment builds use `PRODUCT_APP_URL`
+for the documentation site and `VITE_DOCS_URL` for the product frontend.
+
 Run the five-minute local scheduler when cloud collection is not enabled:
 
 ```bash
@@ -73,6 +90,7 @@ Generated metrics and deployment evidence will be added only after their corresp
 
 ## Technical documentation
 
+- [Product design system](design.md)
 - [System architecture](docs/ARCHITECTURE.md)
 - [Data pipeline](docs/DATA_PIPELINE.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
@@ -93,6 +111,7 @@ ruff check src tests
 pytest
 cd frontend && npm run lint && npm run build && npm audit
 cd infra/cloudflare-collector && npm run typecheck && npm audit
+cd docs-site && npm run typecheck && npm run build && npm audit
 ```
 
 The test suite includes a complete synthetic seven-model competition across Ridge, Random Forest, Extra Trees, Histogram Gradient Boosting, LightGBM, XGBoost, and CatBoost, with three purged expanding-window folds and a final 24-hour holdout. Real-data metrics will only be published after the required history exists.

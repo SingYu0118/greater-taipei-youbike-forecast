@@ -63,14 +63,26 @@ npm run build
 
 Deploy `frontend/dist`. Add the public frontend origin to backend `ALLOWED_ORIGINS` before production release.
 
-## 6. Rollback
+## 6. Documentation website
+
+The bilingual Docusaurus site lives in `docs-site`. It builds English at `/` and Traditional
+Chinese at `/zh-Hant/`, with the shared documentation routes under `/docs`. The production
+command is `npm ci && npm run build`, and the static output directory is `docs-site/build`.
+Cloudflare Pages or Vercel can deploy it without a server or runtime secret. Configure the
+provider's root directory as `docs-site`, build command as `npm run build`, and output directory
+as `build`. Set `PRODUCT_APP_URL` to the deployed React application URL when the documentation
+site is built. Set `VITE_DOCS_URL` in the React build environment to the deployed documentation
+URL. These public configuration values create the bidirectional Product ↔ Documentation links;
+they are not credentials.
+
+## 7. Rollback
 
 - Frontend: redeploy the previous immutable hosting build.
 - Backend: route Cloud Run traffic to the previous revision.
 - Model: change the model object version referenced by the backend and restart the revision.
 - Collector: deploy the previous Worker version. Never delete raw data during rollback.
 
-## 7. Cost guardrails
+## 8. Cost guardrails
 
 - Set Cloud Billing budget alerts before enabling Cloud Run.
 - Keep Cloud Run minimum instances at zero.

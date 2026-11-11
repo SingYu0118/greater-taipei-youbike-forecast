@@ -1,0 +1,62 @@
+{
+  "link.title.System": {
+    "message": "系統",
+    "description": "The title of the footer links column with title=System in the footer"
+  },
+  "link.title.Operate": {
+    "message": "營運",
+    "description": "The title of the footer links column with title=Operate in the footer"
+  },
+  "link.title.Project": {
+    "message": "專案",
+    "description": "The title of the footer links column with title=Project in the footer"
+  },
+  "link.item.label.Architecture": {
+    "message": "系統架構",
+    "description": "The label of footer link with label=Architecture linking to /docs/ARCHITECTURE"
+  },
+  "link.item.label.Data pipeline": {
+    "message": "資料管線",
+    "description": "The label of footer link with label=Data pipeline linking to /docs/DATA_PIPELINE"
+  },
+  "link.item.label.Modeling": {
+    "message": "模型驗證",
+    "description": "The label of footer link with label=Modeling linking to /docs/MODELING"
+  },
+  "link.item.label.API": {
+    "message": "API",
+    "description": "The label of footer link with label=API linking to /docs/API"
+  },
+  "link.item.label.Deployment": {
+    "message": "部署",
+    "description": "The label of footer link with label=Deployment linking to /docs/DEPLOYMENT"
+  },
+  "link.item.label.Security": {
+    "message": "安全",
+    "description": "The label of footer link with label=Security linking to /docs/SECURITY"
+  },
+  "link.item.label.Implementation log": {
+    "message": "實作紀錄",
+    "description": "The label of footer link with label=Implementation log linking to /docs/IMPLEMENTATION_LOG"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub linking to https://github.com/SingYu0118/greater-taipei-youbike-forecast"
+  },
+  "copyright": {
+    "message": "Copyright © 2026 Greater Taipei YouBike Forecast.",
+    "description": "The footer copyright"
+  },
+  "link.title.Product": {
+    "message": "產品",
+    "description": "The title of the footer links column with title=Product in the footer"
+  },
+  "link.item.label.Open application": {
+    "message": "開啟產品 App",
+    "description": "The label of footer link with label=Open application linking to http://localhost:5173"
+  },
+  "link.item.label.API contract": {
+    "message": "API 規格",
+    "description": "The label of footer link with label=API contract linking to /docs/API"
+  }
+}
