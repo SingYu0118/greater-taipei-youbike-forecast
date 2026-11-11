@@ -347,9 +347,9 @@ def _write_calendar(output: Path, start: date, end: date) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build leakage-safe one-hour forecast features")
-    parser.add_argument("--processed-dir", type=Path, default=settings.processed_dir)
+    parser.add_argument("--processed-dir", type=Path, default=settings.formal_processed_dir)
     parser.add_argument(
-        "--output", type=Path, default=settings.data_dir / "features" / "station_hour_ahead.parquet"
+        "--output", type=Path, default=settings.formal_feature_path
     )
     parser.add_argument(
         "--mrt-reference",

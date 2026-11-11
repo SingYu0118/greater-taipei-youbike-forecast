@@ -58,6 +58,9 @@ This log records only observed work. Future entries will include exact commands,
 - Rebuilt the current local preview dataset (237,774 station rows), created 183,492 feature rows across 3,399 stations, and found 94,936 currently eligible labelled rows across 56 timestamps.
 - Confirmed that training fails closed with `Not enough time coverage to create at least two valid expanding folds`; no provisional model was published.
 - Restored the missing `youbike-build-features` editable CLI and pinned its Hatchling editable build requirement.
+- Created a bucket-scoped Object Read Only credential workflow and completed the first authenticated sync: 795 listed objects, 534 verified source snapshots, and approximately 56 MB downloaded without exposing credentials.
+- Separated `data/cloud_raw` formal evidence from `data/raw` laptop backup data, then rebuilt 516 cloud-only station snapshots into 889,068 normalized rows and 876,684 feature rows across 3,399 stations.
+- Re-ran the formal trainer on cloud-only features; it correctly remained closed because the current 21-hour range cannot form the required purged expanding folds and final holdout.
 - Diagnosed and fixed R2's fixed-length upload requirement, then verified successful 16:50, 16:55, 17:00, and 17:05 Asia/Taipei Cron runs; the 17:00 run also exercised the hourly weather path.
 
 ### Remaining evidence

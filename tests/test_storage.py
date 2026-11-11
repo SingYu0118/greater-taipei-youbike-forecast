@@ -2,7 +2,8 @@ import gzip
 import json
 from datetime import UTC, datetime
 
-from youbike_forecast.collectors.storage import LocalRawStorage
+from youbike_forecast.collectors.storage import LocalRawStorage, storage_from_settings
+from youbike_forecast.config import Settings
 
 
 def test_local_storage_is_deterministic_and_readable(tmp_path) -> None:
@@ -16,4 +17,17 @@ def test_local_storage_is_deterministic_and_readable(tmp_path) -> None:
     assert path.exists()
     with gzip.open(path, "rt", encoding="utf-8") as stored:
         assert json.load(stored) == payload
+
+
+def test_r2_read_credentials_do_not_switch_local_collector_backend(tmp_path) -> None:
+    settings = Settings(
+        _env_file=None,
+        data_dir=tmp_path,
+        raw_storage_backend="local",
+        r2_endpoint_url="https://example.r2.cloudflarestorage.com",
+        r2_access_key_id="read-only-key",
+        r2_secret_access_key="read-only-secret",
+        r2_bucket="bucket",
+    )
+    assert isinstance(storage_from_settings(settings), LocalRawStorage)
 

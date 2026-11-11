@@ -22,7 +22,7 @@ def test_r2_source_destination_and_checksum(tmp_path) -> None:
     destination = destination_for_key(config, key)
     atomic_write(destination, compressed)
 
-    assert destination == tmp_path / "raw" / key
+    assert destination == tmp_path / "cloud_raw" / key
     assert destination.read_bytes() == compressed
 
 

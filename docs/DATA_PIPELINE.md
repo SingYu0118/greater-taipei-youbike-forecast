@@ -72,6 +72,8 @@ youbike-train
 
 `youbike-sync-r2` requires the S3-compatible endpoint, access key, secret key, and bucket name in `.env`. It paginates all source, manifest, and control objects; validates source gzip content and SHA-256 metadata; writes atomically; and skips unchanged immutable evidence. Each later stage fails loudly when its required inputs are missing. Dataset and model manifests record creation time, code version, row counts, time coverage, station coverage, model name, and validation results.
 
+Cloud and laptop inputs remain physically separate: `data/cloud_raw` is the only raw input to the formal dataset, while `data/raw` contains LaunchAgent backup snapshots. Formal normalized shards live in `data/formal_processed`, and model features live in `data/formal_features`. This prevents extra laptop wake-up snapshots from changing the cloud cadence or validation distribution.
+
 ## 7. Data-quality reporting
 
 Development smoke snapshots are retained for audit but excluded from the official evidence window once `COLLECTION_START_AT` is set. The timestamp is configured only after functional verification; the dashboard and API then calculate coverage and scheduler outcomes from that point forward.

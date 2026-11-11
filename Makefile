@@ -33,7 +33,7 @@ features:
 	.venv/bin/youbike-build-features
 
 train:
-	.venv/bin/youbike-train
+	MPLCONFIGDIR=/tmp/youbike-matplotlib XDG_CACHE_HOME=/tmp/youbike-cache .venv/bin/youbike-train
 
 api:
 	.venv/bin/uvicorn youbike_forecast.api.main:app --reload --port 8000

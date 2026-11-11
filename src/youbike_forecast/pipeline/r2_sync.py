@@ -38,7 +38,7 @@ def r2_client(config: Settings) -> tuple[Any, str]:
 
 def destination_for_key(config: Settings, key: str) -> Path:
     if key.startswith("source="):
-        return config.raw_dir / key
+        return config.cloud_raw_dir / key
     return config.data_dir / "cloud_evidence" / key
 
 

@@ -404,7 +404,7 @@ def main() -> None:
     parser.add_argument(
         "--features",
         type=Path,
-        default=settings.data_dir / "features" / "station_hour_ahead.parquet",
+        default=settings.formal_feature_path,
     )
     parser.add_argument("--output-dir", type=Path, default=settings.model_dir)
     args = parser.parse_args()

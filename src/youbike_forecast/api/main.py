@@ -15,7 +15,7 @@ from youbike_forecast.pipeline.quality import build_quality_report
 
 forecast_service = ForecastService(
     settings.model_dir,
-    settings.data_dir / "features" / "station_hour_ahead.parquet",
+    settings.formal_feature_path,
     settings.raw_dir,
     settings.data_dir / "logs" / "collector.jsonl",
     settings.collection_start_at,

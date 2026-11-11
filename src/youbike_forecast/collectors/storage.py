@@ -97,7 +97,7 @@ class R2RawStorage:
 
 
 def storage_from_settings(settings: Settings) -> RawStorage:
-    if settings.r2_bucket:
+    if settings.raw_storage_backend == "r2":
         return R2RawStorage(settings)
     return LocalRawStorage(settings.raw_dir)
 

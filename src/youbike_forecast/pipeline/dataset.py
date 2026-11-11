@@ -156,8 +156,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Build reproducible Parquet data from raw snapshots"
     )
-    parser.add_argument("--raw-dir", type=Path, default=settings.raw_dir)
-    parser.add_argument("--processed-dir", type=Path, default=settings.processed_dir)
+    parser.add_argument("--raw-dir", type=Path, default=settings.cloud_raw_dir)
+    parser.add_argument("--processed-dir", type=Path, default=settings.formal_processed_dir)
     args = parser.parse_args()
     station_totals = build_station_parquet(args.raw_dir, args.processed_dir)
     weather_totals = build_weather_parquet(args.raw_dir, args.processed_dir)
