@@ -16,7 +16,7 @@
 - Added checksum-based object naming, source/date/hour partitions, and dataset manifests.
 - Added source-specific normalization and invariant validation.
 - Added 60-minute label alignment logic, lag and rolling feature definitions.
-- Added persistence, trend, previous-hour, Ridge, Extra Trees, LightGBM, and CatBoost model competitors.
+- Added persistence, trend, and previous-hour baselines plus Ridge, Random Forest, Extra Trees, Histogram Gradient Boosting, LightGBM, XGBoost, and CatBoost model competitors.
 - Added final 24-hour holdout and three expanding 12-hour validation windows with a 60-minute purge gap.
 - Added out-of-fold uncertainty calibration, final-holdout subgroup metrics, permutation importance, and global/local SHAP reports.
 - Added evidence-gated forecast, metrics, drivers, data-quality, and weather what-if API routes.
@@ -68,4 +68,22 @@ This log records only observed work. Future entries will include exact commands,
 - Complete at least 120 hours of official collection with at least 95% snapshot completeness.
 - Build the final reproducible dataset and run model selection on real history.
 - Publish final-holdout metrics, drivers, what-if results, production application URLs, and the final presentation.
+
+## 2026-11-11
+
+### Completed
+
+- Reviewed model families against the actual five-day, multi-station, direct 60-minute forecasting design and documented explicit inclusion and deferral criteria.
+- Expanded the formal competition from four to seven learned candidates by adding Random Forest, Histogram Gradient Boosting, and XGBoost.
+- Retained one shared leakage-safe evaluation protocol for every candidate rather than giving any model a favourable split.
+- Added XGBoost to the reproducible model dependency group and verified installation in the project environment.
+- Selected the CPU-only XGBoost package for Linux containers after a Docker build exposed the standard package's unnecessary NVIDIA NCCL dependency.
+- Rebuilt the production image successfully and verified inside the Linux container that XGBoost 3.4.1 imports and all seven candidate factories are available.
+- Passed Python lint and all 20 tests, including the complete synthetic seven-model competition, artifact serialization, API inference, prediction intervals, and weather what-if flow.
+- Re-ran the formal trainer and confirmed that it still fails closed before fitting candidates because the official history has not yet reached the required time coverage.
+
+### Deferred by evidence, not omitted
+
+- ARIMA/ARIMAX require a separate station-level rolling design and more repeated seasonal history.
+- Global neural sequence and graph models require at least one month of history to justify their additional variance and operational cost.
 

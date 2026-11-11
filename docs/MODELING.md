@@ -37,11 +37,28 @@ The purge gap prevents a label at the end of training from reaching into the val
 ### Learned models
 
 - Ridge regression: interpretable linear reference with median imputation and scaling.
+- Random Forest: conventional bootstrap-aggregated tree reference.
 - Extra Trees: nonlinear bagged-tree comparison.
+- Histogram Gradient Boosting: dependency-light histogram booster designed for large tabular datasets.
 - LightGBM: gradient boosting optimized for structured tabular data.
+- XGBoost: mature histogram-based gradient boosting comparison.
 - CatBoost: a second boosting family with different regularization and tree construction.
 
+These seven candidates cover a linear control, two bagged-tree methods, and four distinct
+gradient-boosting implementations. Standard Gradient Boosting is excluded because its exact
+split search scales poorly at this row count and is superseded here by the histogram variant.
+ARIMA/ARIMAX are not part of the five-day global competition: a defensible rolling-origin
+comparison would require thousands of station-level models and repeated re-fitting, while the
+current task needs one deployable global model that shares information across stations and uses
+spatial covariates. LSTM, TFT, N-HiTS, and other neural sequence models are deferred until at
+least one month of history provides repeated weekly and weather regimes.
+
 Hyperparameter search, if enabled, is restricted to the development folds. Model selection uses mean cross-validation MAE, then RMSE as a tie-breaker. Fold-to-fold stability, inference latency, and empty/full risk recall are also reported.
+
+The bagged-tree candidates use bounded depth and minimum leaf sizes so their memory footprint
+remains defensible at the expected multi-million-row scale. Every fold records fit time,
+prediction time, and prediction throughput; these operational measurements are reported but do
+not override the pre-declared MAE/RMSE selection rule.
 
 ## 6. Metrics
 

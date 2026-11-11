@@ -36,6 +36,8 @@ dev = [
 ]
 models = [
   "catboost>=1.2,<2",
+  "xgboost>=3.1,<4; platform_system == 'Darwin'",
+  "xgboost-cpu>=3.1,<4; platform_system != 'Darwin'",
 ]
 
 [project.scripts]

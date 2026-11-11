@@ -77,6 +77,7 @@ Generated metrics and deployment evidence will be added only after their corresp
 - [Data pipeline](docs/DATA_PIPELINE.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
 - [Modeling and time validation](docs/MODELING.md)
+- [Model candidate review](docs/MODEL_CANDIDATE_REVIEW.md)
 - [API contract](docs/API.md)
 - [Testing strategy](docs/TESTING.md)
 - [Deployment runbook](docs/DEPLOYMENT.md)
@@ -94,4 +95,4 @@ cd frontend && npm run lint && npm run build && npm audit
 cd infra/cloudflare-collector && npm run typecheck && npm audit
 ```
 
-The test suite includes a complete synthetic model competition across Ridge, Extra Trees, LightGBM, and CatBoost, with three purged expanding-window folds and a final 24-hour holdout. Real-data metrics will only be published after the required history exists.
+The test suite includes a complete synthetic seven-model competition across Ridge, Random Forest, Extra Trees, Histogram Gradient Boosting, LightGBM, XGBoost, and CatBoost, with three purged expanding-window folds and a final 24-hour holdout. Real-data metrics will only be published after the required history exists.

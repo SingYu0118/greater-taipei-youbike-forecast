@@ -61,12 +61,18 @@ def test_full_model_competition_writes_final_artifacts(tmp_path) -> None:
     pd.DataFrame(rows).to_parquet(feature_path, index=False)
     output = tmp_path / "models"
     report = train_and_evaluate(feature_path, output)
-    assert report["winner"] in {"ridge", "extra_trees", "lightgbm", "catboost"}
-    assert set(report["cross_validation"]) == {
+    expected_models = {
         "ridge",
+        "random_forest",
         "extra_trees",
+        "hist_gradient_boosting",
         "lightgbm",
+        "xgboost",
         "catboost",
+    }
+    assert report["winner"] in expected_models
+    assert set(report["cross_validation"]) == {
+        *expected_models,
     }
     assert report["coverage"]["final_holdout_rows"] == 48
     assert report["publication_gate"]["passed"] is True

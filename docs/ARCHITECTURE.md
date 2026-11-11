@@ -73,7 +73,7 @@ Implemented and locally verified:
 - Source-specific normalization to one documented station schema.
 - Incremental raw-to-Parquet reconstruction.
 - Expanding-window split utility with a 60-minute purge gap and final holdout.
-- Four-model competition, out-of-fold prediction interval calibration, subgroup evaluation, and SHAP/permutation driver reports.
+- Seven-model competition, out-of-fold prediction interval calibration, subgroup evaluation, and SHAP/permutation driver reports.
 - React map application and evidence-gated FastAPI forecast, metrics, drivers, quality, and what-if endpoints.
 - Python tests, static checks, frontend production build, and Worker typecheck.
 

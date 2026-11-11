@@ -8,14 +8,20 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from time import perf_counter
 
 import joblib
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import shap
+import xgboost as xgb
 from catboost import CatBoostRegressor
-from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.ensemble import (
+    ExtraTreesRegressor,
+    HistGradientBoostingRegressor,
+    RandomForestRegressor,
+)
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import Ridge
@@ -80,16 +86,45 @@ def candidates(random_state: int = 42) -> list[Candidate]:
             ),
         ),
         Candidate(
+            "random_forest",
+            lambda: make_pipeline(
+                SimpleImputer(strategy="median"),
+                RandomForestRegressor(
+                    n_estimators=160,
+                    max_depth=20,
+                    min_samples_leaf=10,
+                    max_features=0.8,
+                    max_samples=0.8,
+                    n_jobs=-1,
+                    random_state=random_state,
+                ),
+            ),
+        ),
+        Candidate(
             "extra_trees",
             lambda: make_pipeline(
                 SimpleImputer(strategy="median"),
                 ExtraTreesRegressor(
-                    n_estimators=240,
-                    min_samples_leaf=3,
+                    n_estimators=180,
+                    max_depth=20,
+                    min_samples_leaf=10,
                     max_features=0.8,
                     n_jobs=-1,
                     random_state=random_state,
                 ),
+            ),
+        ),
+        Candidate(
+            "hist_gradient_boosting",
+            lambda: HistGradientBoostingRegressor(
+                loss="absolute_error",
+                learning_rate=0.06,
+                max_iter=350,
+                max_leaf_nodes=48,
+                min_samples_leaf=80,
+                l2_regularization=2.0,
+                early_stopping=False,
+                random_state=random_state,
             ),
         ),
         Candidate(
@@ -106,6 +141,22 @@ def candidates(random_state: int = 42) -> list[Candidate]:
                 random_state=random_state,
                 n_jobs=-1,
                 verbosity=-1,
+            ),
+        ),
+        Candidate(
+            "xgboost",
+            lambda: xgb.XGBRegressor(
+                objective="reg:absoluteerror",
+                tree_method="hist",
+                n_estimators=500,
+                learning_rate=0.04,
+                max_depth=9,
+                min_child_weight=80,
+                subsample=0.85,
+                colsample_bytree=0.85,
+                reg_lambda=2.0,
+                random_state=random_state,
+                n_jobs=-1,
             ),
         ),
         Candidate(
@@ -233,18 +284,30 @@ def train_and_evaluate(feature_path: Path, output_dir: Path) -> dict[str, object
         validation_frame = development.loc[fold.validation_indices]
         for candidate in candidates():
             model = candidate.factory()
+            fit_started = perf_counter()
             model.fit(train_frame[FEATURES], train_frame["target_bikes"])
+            fit_seconds = perf_counter() - fit_started
+            predict_started = perf_counter()
             predictions = model.predict(validation_frame[FEATURES])
+            predict_seconds = perf_counter() - predict_started
             cv_absolute_errors[candidate.name].append(
                 np.abs(validation_frame["target_bikes"].to_numpy() - predictions)
             )
-            cv_results[candidate.name].append(
-                regression_metrics(
+            fold_metrics = regression_metrics(
                     validation_frame["target_bikes"].to_numpy(),
                     np.asarray(predictions),
                     validation_frame["capacity"].to_numpy(),
                 )
+            fold_metrics.update(
+                {
+                    "fit_seconds": float(fit_seconds),
+                    "predict_seconds": float(predict_seconds),
+                    "prediction_rows_per_second": float(
+                        len(validation_frame) / max(predict_seconds, 1e-9)
+                    ),
+                }
             )
+            cv_results[candidate.name].append(fold_metrics)
     summary = {
         name: {
             metric: float(np.mean([fold_result[metric] for fold_result in fold_results]))
@@ -254,8 +317,12 @@ def train_and_evaluate(feature_path: Path, output_dir: Path) -> dict[str, object
     }
     winner = min(summary, key=lambda name: (summary[name]["mae"], summary[name]["rmse"]))
     selected = next(candidate for candidate in candidates() if candidate.name == winner).factory()
+    final_fit_started = perf_counter()
     selected.fit(development[FEATURES], development["target_bikes"])
+    final_fit_seconds = perf_counter() - final_fit_started
+    final_predict_started = perf_counter()
     holdout_predictions = np.asarray(selected.predict(holdout[FEATURES]))
+    final_predict_seconds = perf_counter() - final_predict_started
     final_metrics = regression_metrics(
         holdout["target_bikes"].to_numpy(), holdout_predictions, holdout["capacity"].to_numpy()
     )
@@ -302,6 +369,13 @@ def train_and_evaluate(feature_path: Path, output_dir: Path) -> dict[str, object
         "cross_validation_folds": cv_results,
         "baseline_folds": baseline_results,
         "final_holdout": {winner: final_metrics, **final_baselines},
+        "selected_model_runtime": {
+            "fit_seconds": float(final_fit_seconds),
+            "predict_seconds": float(final_predict_seconds),
+            "prediction_rows_per_second": float(
+                len(holdout) / max(final_predict_seconds, 1e-9)
+            ),
+        },
         "final_holdout_segments": segment_metrics,
         "publication_gate": {
             "beats_persistence_mae": beats_persistence,
@@ -355,7 +429,7 @@ def explain_model(model: object, model_name: str, holdout: pd.DataFrame) -> dict
         key=lambda row: abs(row["importance_mean"]),
         reverse=True,
     )
-    if model_name in {"ridge", "extra_trees"}:
+    if model_name in {"ridge", "random_forest", "extra_trees"}:
         transformed = model[:-1].transform(x_sample)  # type: ignore[index]
         estimator = model[-1]  # type: ignore[index]
     else:
