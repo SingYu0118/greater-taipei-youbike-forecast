@@ -18,6 +18,7 @@ docs-site/build/
 docs-site/.docusaurus/
 docs-site/node_modules/
 .wrangler/
+.presentation-build/
 data/raw/
 data/cloud_raw/
 data/cloud_evidence/
