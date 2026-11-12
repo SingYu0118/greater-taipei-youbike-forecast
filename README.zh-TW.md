@@ -86,6 +86,7 @@ Raw layer 原樣保留 source responses。Object keys 依 source、UTC date 與 
 
 可從 `docs-site` 以分類、搜尋與中英切換瀏覽，或直接查看 [docs](docs/) 內的英文 Markdown。繁中對應文件位於 `docs-site/i18n/zh-Hant/docusaurus-plugin-content-docs/current/`。
 
+- [專案完整導讀：從問題、資料、模型到產品](docs-site/i18n/zh-Hant/docusaurus-plugin-content-docs/current/PROJECT_GUIDE.md)
 - [產品設計系統](design.md)
 
 ## 已驗證品質門檻

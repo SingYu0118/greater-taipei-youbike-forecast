@@ -100,6 +100,7 @@ Generated metrics and deployment evidence will be added only after their corresp
 
 ## Technical documentation
 
+- [Complete project guide](docs/PROJECT_GUIDE.md)
 - [Product design system](design.md)
 - [System architecture](docs/ARCHITECTURE.md)
 - [Data pipeline](docs/DATA_PIPELINE.md)

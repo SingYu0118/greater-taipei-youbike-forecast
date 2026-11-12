@@ -4,6 +4,12 @@ const sidebars: SidebarsConfig = {
   technicalSidebar: [
     {
       type: 'category',
+      label: 'Start here',
+      collapsed: false,
+      items: ['PROJECT_GUIDE'],
+    },
+    {
+      type: 'category',
       label: 'System design',
       collapsed: false,
       items: ['ARCHITECTURE', 'DATA_PIPELINE', 'DATA_DICTIONARY', 'SOURCES'],
