@@ -1,4 +1,4 @@
-.PHONY: install test lint collect collect-scheduled collector-status reference sync-r2 dataset features train train-early early-diagnostic api frontend docs-install docs docs-build deploy-product deploy-docs
+.PHONY: install test lint collect collect-scheduled collector-status reference sync-r2 dataset features train train-early early-diagnostic practice-history practice-early api frontend docs-install docs docs-build deploy-product deploy-docs
 
 install:
 	python3.12 -m venv .venv
@@ -39,6 +39,12 @@ train-early:
 	MPLCONFIGDIR=/tmp/youbike-matplotlib XDG_CACHE_HOME=/tmp/youbike-cache .venv/bin/python -m youbike_forecast.models.early
 
 early-diagnostic: sync-r2 dataset features train-early
+
+practice-history:
+	.venv/bin/python -m youbike_forecast.pipeline.practice_history --stations 120
+
+practice-early: practice-history
+	MPLCONFIGDIR=/tmp/youbike-matplotlib XDG_CACHE_HOME=/tmp/youbike-cache LOKY_MAX_CPU_COUNT=4 .venv/bin/python -m youbike_forecast.models.early --features data/practice_features/station_hour_ahead.parquet --output artifacts/practice/early-72h-evaluation.json
 
 api:
 	.venv/bin/uvicorn youbike_forecast.api.main:app --reload --port 8000

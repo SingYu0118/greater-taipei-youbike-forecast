@@ -95,3 +95,28 @@ The final report will include:
 - weather-forecast match coverage;
 - missing-feature rates by column.
 
+## 8. Development-only public history
+
+The official Taipei and New Taipei feeds publish current station state, not a downloadable
+five-minute station-inventory archive. For local pipeline and model practice, the repository
+can optionally import the MIT-licensed Taipei snapshots collected by
+[`tses89214/youbike-historical-data`](https://github.com/tses89214/youbike-historical-data).
+The upstream project contains daily `slots` CSV files from 2024-05-03 through 2025-06-22.
+
+```bash
+make practice-early
+```
+
+The default command downloads only 2025-06-19 through 2025-06-22 and samples 120 stations,
+rather than cloning the full history. It writes exclusively to `data/practice_downloads`,
+`data/practice_processed`, `data/practice_features`, and `artifacts/practice`.
+
+This lane is deliberately ineligible for formal reporting:
+
+- it contains Taipei only, not the complete Greater Taipei network;
+- the third-party CSV retains station `infoTime`, not the collector fetch timestamp;
+- archived issue-time weather forecasts are unavailable, so weather fields use constant zero
+  placeholders that carry no weather signal in the practice run;
+- its results exercise the pipeline and model competition but never satisfy the five-day R2
+  collection, completeness, or publication gates.
+

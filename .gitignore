@@ -19,9 +19,13 @@ docs-site/.docusaurus/
 docs-site/node_modules/
 .wrangler/
 .presentation-build/
+~$*.pptx
 data/raw/
 data/cloud_raw/
 data/cloud_evidence/
+data/practice_downloads/
+data/practice_processed/
+data/practice_features/
 data/processed/
 data/features/
 data/formal_processed/
@@ -29,6 +33,7 @@ data/formal_features/
 data/logs/
 artifacts/models/
 artifacts/reports/
+artifacts/practice/
 *.duckdb
 .DS_Store
 

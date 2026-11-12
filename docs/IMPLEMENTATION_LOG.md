@@ -101,4 +101,8 @@ This log records only observed work. Future entries will include exact commands,
 - Verified automatic progress without redeployment: the public API advanced from 53.99 to 54.07 observed hours and from 425 to 426 complete runs after the next collector cycle.
 - Kept the public health route independent of R2 and added five-minute shared caching to the quality route.
 - Drafted four English model-selection slides and a separate plain-language Chinese speaker script; model-score fields remain intentionally absent until the evidence gates pass.
+- Verified that the official Taipei and New Taipei station feeds expose current snapshots rather than a downloadable five-minute inventory archive; official OD and daily availability-rate datasets answer different questions.
+- Added a physically isolated practice importer for the MIT-licensed `tses89214/youbike-historical-data` Taipei archive. The default command downloads only four daily CSV files and never writes to formal R2, raw, processed, feature, or model paths.
+- Completed a real development-only 72-hour diagnostic on 120 sampled Taipei stations: 30,257 feature rows, 15,634 training rows, and 2,211 untouched day-three rows. CatBoost was the best learned candidate at MAE 4.210, but persistence remained better at MAE 4.142, so the improvement was -1.63% and no publication gate passed.
+- Recorded the practice limitations explicitly: Taipei only, publisher `infoTime` used as the observation timestamp, and constant weather placeholders with no predictive signal. These results validate plumbing and time splits but are not formal assignment evidence.
 
