@@ -91,3 +91,14 @@ This log records only observed work. Future entries will include exact commands,
 - ARIMA/ARIMAX require a separate station-level rolling design and more repeated seasonal history.
 - Global neural sequence and graph models require at least one month of history to justify their additional variance and operational cost.
 
+## 2026-11-12
+
+### Completed
+
+- Added the pre-declared 72-hour diagnostic: first 48 hours for training, a 60-minute purge, and the third day as one untouched test shared by all models and baselines.
+- Added `make early-diagnostic` to sync R2, rebuild the formal dataset and features, and write a preliminary evaluation without publishing a serving artifact.
+- Replaced the product's deployment-time quality snapshot with a live sanitized read of `control/collection-quality.json` from R2.
+- Verified automatic progress without redeployment: the public API advanced from 53.99 to 54.07 observed hours and from 425 to 426 complete runs after the next collector cycle.
+- Kept the public health route independent of R2 and added five-minute shared caching to the quality route.
+- Drafted four English model-selection slides and a separate plain-language Chinese speaker script; model-score fields remain intentionally absent until the evidence gates pass.
+

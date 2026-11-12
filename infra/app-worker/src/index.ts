@@ -1,5 +1,6 @@
 interface Env {
   ASSETS: Fetcher;
+  RAW_BUCKET: R2Bucket;
 }
 
 const TAIPEI_URL =
@@ -8,10 +9,7 @@ const NTPC_URL =
   "https://data.ntpc.gov.tw/api/datasets/010e5b15-3823-4b20-b401-b1cf000550c5/json";
 const COLLECTION_START_AT = "2026-11-10T07:51:49Z";
 const REQUIRED_HOURS = 120;
-const VERIFIED_QUALITY_AT = "2026-11-11T16:25:56.796Z";
-const VERIFIED_HOURS = 32.57;
-const VERIFIED_COMPLETENESS = 0.9719;
-const VERIFIED_RUNS = 168;
+const QUALITY_OBJECT_KEY = "control/collection-quality.json";
 
 type TaipeiRow = Record<string, string | number | null>;
 type NewTaipeiRow = Record<string, string | number | null>;
@@ -41,7 +39,7 @@ export default {
     }
 
     if (request.method === "GET" && url.pathname === "/api/v1/data/quality") {
-      return json(publicQualityStatus(), {
+      return json(await publicQualityStatus(env), {
         "cache-control": "public, max-age=60, s-maxage=300",
       });
     }
@@ -109,23 +107,70 @@ async function fetchNewTaipei() {
   }));
 }
 
-function publicQualityStatus() {
+type CollectionQuality = {
+  official_start_at: string;
+  updated_at: string;
+  tracked_runs: number;
+  complete_runs_since_tracking: number;
+  partial_failure_runs_since_tracking: number;
+  observed_hours: number;
+  required_hours: number;
+  five_days_met: boolean;
+  minimum_station_completeness: number;
+  minimum_required_completeness: number;
+  collection_quality_met: boolean;
+};
+
+async function publicQualityStatus(env: Env) {
+  const object = await env.RAW_BUCKET.get(QUALITY_OBJECT_KEY);
+  if (!object) throw new Error(`Missing R2 quality object: ${QUALITY_OBJECT_KEY}`);
+  const quality = await object.json<CollectionQuality>();
+  assertQuality(quality);
   return {
-    generated_at: VERIFIED_QUALITY_AT,
+    generated_at: quality.updated_at,
     quality_basis:
-      "Verified snapshot from the private R2 collection-quality control object; formal training re-syncs immutable evidence.",
+      "Live sanitized view of the private R2 collection-quality control object.",
     sources: {},
-    scheduler_runs: { success: VERIFIED_RUNS, partial_failure: 0, failure: 0, malformed: 0 },
+    scheduler_runs: {
+      success: quality.complete_runs_since_tracking,
+      partial_failure: quality.partial_failure_runs_since_tracking,
+      failure: Math.max(
+        quality.tracked_runs -
+          quality.complete_runs_since_tracking -
+          quality.partial_failure_runs_since_tracking,
+        0,
+      ),
+      malformed: 0,
+    },
     minimum_requirement: {
-      official_start_at: COLLECTION_START_AT,
-      required_hours: REQUIRED_HOURS,
-      observed_station_hours: VERIFIED_HOURS,
-      minimum_completeness: 0.95,
-      observed_station_completeness: VERIFIED_COMPLETENESS,
-      five_days_met: VERIFIED_HOURS >= REQUIRED_HOURS,
-      collection_quality_met: false,
+      official_start_at: quality.official_start_at || COLLECTION_START_AT,
+      required_hours: quality.required_hours || REQUIRED_HOURS,
+      observed_station_hours: quality.observed_hours,
+      minimum_completeness: quality.minimum_required_completeness,
+      observed_station_completeness: quality.minimum_station_completeness,
+      five_days_met: quality.five_days_met,
+      collection_quality_met: quality.collection_quality_met,
     },
   };
+}
+
+function assertQuality(value: CollectionQuality): void {
+  const numericValues = [
+    value.tracked_runs,
+    value.complete_runs_since_tracking,
+    value.partial_failure_runs_since_tracking,
+    value.observed_hours,
+    value.required_hours,
+    value.minimum_station_completeness,
+    value.minimum_required_completeness,
+  ];
+  if (
+    !value.official_start_at ||
+    !value.updated_at ||
+    numericValues.some((item) => !Number.isFinite(item) || item < 0)
+  ) {
+    throw new Error("Malformed R2 collection-quality control object");
+  }
 }
 
 async function fetchJson<T>(url: string, attempts = 3): Promise<T> {

@@ -83,3 +83,14 @@
 
 - ARIMA/ARIMAX 需獨立站點級 rolling design 與更多重複季節歷史。
 - Global neural sequence 與 graph models 需至少一個月歷史，才能支持額外變異與營運成本。
+
+## 2026-11-12
+
+### 已完成
+
+- 加入事先固定的 72 小時診斷：前 48 小時訓練、60 分鐘 purge、第三天作為所有模型與 baseline 共用的 untouched test。
+- 加入 `make early-diagnostic`，可同步 R2、重建正式 dataset/features，並輸出不會發布至 serving API 的 preliminary evaluation。
+- 將產品部署時固定的品質快照改為即時讀取 R2 `control/collection-quality.json` 的 sanitized view。
+- 驗證無需重新部署即可自動更新：下一次 collector 後，公開 API 由 53.99 增至 54.07 小時，完整 runs 由 425 增至 426。
+- 公開 health route 仍不讀 R2；品質 route 加入五分鐘 shared cache。
+- 完成四頁英文模型選用簡報草稿與獨立中文白話講稿；模型分數在證據門檻通過前刻意保持空白。

@@ -6,3 +6,7 @@ compatibility_date = "2026-11-11"
 directory = "../../frontend/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+
+[[r2_buckets]]
+binding = "RAW_BUCKET"
+bucket_name = "greater-taipei-youbike-raw"

@@ -73,6 +73,12 @@ npm run build
 
 公開產品使用 `infra/app-worker/wrangler.toml` 部署為 Cloudflare Worker with Static Assets。同源 Edge API 在資料收集期間提供即時站點；validated model artifact 尚未產生前，正式預測、metrics、drivers 與 what-if endpoints 維持不可用。
 
+同一 Worker 將 raw R2 bucket 綁定為 `RAW_BUCKET`，但公開品質 route 只會執行
+`get("control/collection-quality.json")`。程式會驗證 control object schema，再只回傳更新時間、
+已驗證執行次數、累積時數、完整率與 gate 狀態。Raw object keys、payload、cost-guard
+細節與憑證都不會進入 response。五分鐘 shared-cache header 在維持 App 自動更新的同時，
+限制 Class B reads。
+
 本機 Wrangler 完成登入後，可重現發布：
 
 ```bash
@@ -96,5 +102,6 @@ make deploy-docs
 - `MAX_OBJECT_BYTES` 在儲存前拒絕異常大 payload，程式上限 1 MB。
 - 每次 run 前，`control/cost-guard.json` 保守預留六次寫入與 4 MB；達 10,000 writes 或 8 GB 前就停止，80% 時警告。
 - 公開 health route 不執行 R2 operation，外部流量無法消耗 Class B reads。
+- 公開品質 route 只讀一個小型 control object，並套用五分鐘 shared cache；它不會 list 或回傳 raw history。
 - 五分鐘 Cron 的五日窗口少於 1,500 invocations 與 6,000 Class A writes，低於 R2 每月免費一百萬次。
 - Cloudflare budget notifications 是警示，不是保證扣款截止。專案 deadline 與 payload cap 才是可執行的截止；下載證據後移除 Cron。

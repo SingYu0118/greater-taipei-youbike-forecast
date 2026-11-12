@@ -86,6 +86,13 @@ The public product is deployed as a Cloudflare Worker with Static Assets using
 the model is collecting data. The formal forecast, metrics, drivers, and what-if endpoints stay
 unavailable until a validated model artifact exists.
 
+The same Worker binds the raw R2 bucket as `RAW_BUCKET`, but the public quality route only calls
+`get("control/collection-quality.json")`. It validates the control-object schema and returns a
+sanitized subset: update time, verified run counts, observed hours, completeness, and gate state.
+Raw object keys, payloads, cost-guard details, and credentials never enter the response. A
+five-minute shared-cache header limits Class B reads while allowing the App to advance without a
+new deployment.
+
 With Wrangler authenticated locally, reproducible releases are:
 
 ```bash
@@ -110,6 +117,7 @@ make deploy-docs
 - `MAX_OBJECT_BYTES` rejects unexpectedly large upstream payloads before storage and is capped in code at 1 MB.
 - Before each run, `control/cost-guard.json` conservatively reserves six writes and 4 MB, including the collection-quality state update. Collection stops before upstream fetches at 10,000 reserved writes or 8 GB, and emits a warning at 80% of either project limit.
 - The public health route performs no R2 operation, so arbitrary health traffic cannot consume billable Class B reads. Detailed guard state remains in the internal control object and Worker logs.
+- The public quality route reads one small control object and applies a five-minute shared cache; it never lists or returns raw history.
 - With a five-minute Cron, the configured five-day window has fewer than 1,500 invocations and 6,000 Class A writes, far below R2's one-million monthly free allowance.
 - Cloudflare budget notifications are alerts, not a guaranteed billing cutoff. The application deadline and payload cap are the enforceable project-level cutoff; remove the Cron after evidence is downloaded.
 

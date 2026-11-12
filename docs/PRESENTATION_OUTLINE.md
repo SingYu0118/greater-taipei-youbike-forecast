@@ -1,6 +1,9 @@
 # Presentation Content Outline
 
-The final deck will be written only after five-day metrics and production URLs are available. This outline defines the story and evidence required for each slide.
+The stable slides can be drafted before the five-day gate. The model-selection and validation
+section is now drafted in English, with a separate Chinese speaker script. Result slides remain
+unfilled until the preliminary and formal evaluation artifacts exist. This outline defines the
+full story and the evidence required for each slide.
 
 | Slide | Plain-language headline | Evidence or visual | Speaker objective |
 |---|---|---|---|
