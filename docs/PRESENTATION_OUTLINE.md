@@ -13,14 +13,15 @@ full story and the evidence required for each slide.
 | 4 | Every raw response remains replayable | Pipeline architecture and failure boundaries | Demonstrate reliability and auditability. |
 | 5 | The target is simple; aligning it correctly is not | `t` to `t+60m` timeline with tolerance | Explain label construction without jargon. |
 | 6 | We only use information known at prediction time | Feature availability timeline | Make leakage prevention understandable. |
-| 7 | Several models competed across future time windows | Rolling-origin fold diagram and model table | Prove model selection was fair. |
-| 8 | The winning model beat a strong same-as-now baseline | Final holdout MAE/RMSE chart | State the main quantitative result. |
-| 9 | Performance differs by time, weather and station | Subgroup error panels | Surface operational weaknesses, not only averages. |
-| 10 | Recent flow, time and location drive forecasts | SHAP summary with plain labels | Explain global drivers. |
-| 11 | What if rain starts within the next hour? | Controlled scenario comparison | Show one useful model-response experiment. |
-| 12 | The application turns a model into a decision tool | Live product flow | Demonstrate search, map, uncertainty and explanation. |
-| 13 | Five days proves the pipeline, not every season | Honest limitation table | Show judgment and avoid overstating evidence. |
-| 14 | Another month would improve calibration and operations | Prioritized roadmap | End with concrete next steps and business value. |
+| 7 | Prior research changed four design decisions | Evidence-to-decision matrix with concise citations | Show what was adopted, deferred, and why the architecture remains appropriate. |
+| 8 | Several models competed across future time windows | Rolling-origin fold diagram and model table | Prove model selection was fair. |
+| 9 | The winning model beat a strong same-as-now baseline | Final holdout MAE/RMSE chart | State the main quantitative result. |
+| 10 | Performance differs by time, weather and station | Subgroup error panels | Surface operational weaknesses, not only averages. |
+| 11 | Recent flow, time and location drive forecasts | SHAP summary with plain labels | Explain global drivers. |
+| 12 | What if rain starts within the next hour? | Controlled scenario comparison | Show one useful model-response experiment. |
+| 13 | The application turns a model into a decision tool | Live product flow | Demonstrate search, map, uncertainty and explanation. |
+| 14 | Five days proves the pipeline, not every season | Honest limitation table | Show judgment and avoid overstating evidence. |
+| 15 | Another month would improve calibration and operations | Prioritized roadmap | End with concrete next steps and business value. |
 
 ## Writing rules for the final deck
 
