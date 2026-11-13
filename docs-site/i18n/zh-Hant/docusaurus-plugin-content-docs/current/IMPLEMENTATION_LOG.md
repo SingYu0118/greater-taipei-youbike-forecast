@@ -94,3 +94,14 @@
 - 驗證無需重新部署即可自動更新：下一次 collector 後，公開 API 由 53.99 增至 54.07 小時，完整 runs 由 425 增至 426。
 - 公開 health route 仍不讀 R2；品質 route 加入五分鐘 shared cache。
 - 完成四頁英文模型選用簡報草稿與獨立中文白話講稿；模型分數在證據門檻通過前刻意保持空白。
+
+## 2026-11-13
+
+### 已完成
+
+- 在 74.07 個站點觀測小時、98.43% 完整率、663 次完整 tracked runs、三次 partial failure、零次完整 failure 時，通過早期診斷所需的 raw-history 門檻。
+- 同步 2,678 個 R2 objects、驗證 1,267 份 source objects，重建 1,732 份站點快照與 73 份 issue-time weather snapshots，產生 3,401 站、2,980,672 列 features。
+- 依預先定義規則，以 1,919,352 列訓練資料、60 分鐘 purge 與 971,474 列第三日 untouched test 完成 official-window 早期診斷。
+- XGBoost 第三日 MAE 為 2.547，Persistence 為 2.777，初步改善 8.30%；CatBoost、LightGBM 與 Histogram Gradient Boosting 分別為 2.559、2.567 與 2.569。
+- 因早期診斷只有一個測試日，不能取代五日 rolling validation 與 final holdout，因此 publication gate 仍維持關閉。
+- 確認營運風險 recall 是主要弱點：XGBoost empty/full recall 為 34.82%／6.96%，低於 Persistence 的 65.26%／43.39%；正式報告會同時保留 regression 與 risk metrics。

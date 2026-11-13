@@ -1,0 +1,123 @@
+{
+  "created_at": "2026-11-13T10:13:30.141852+00:00",
+  "code_version": "bfcc984bad28aecbc75880474d26a2cd72fb9a66",
+  "evidence_tier": "official-window preliminary",
+  "status": "preliminary_not_for_production",
+  "protocol": "first 48 hours train, 60-minute purge, third day untouched test",
+  "selection_warning": "The day-three ranking is diagnostic only. It does not replace rolling validation or the five-day publication gate.",
+  "coverage": {
+    "dataset_start": "2026-11-10T08:50:56.406000+00:00",
+    "dataset_end": "2026-11-13T09:05:56.464000+00:00",
+    "train_end": "2026-11-12T07:50:56.406000+00:00",
+    "test_start": "2026-11-12T08:50:56.406000+00:00",
+    "test_end": "2026-11-13T08:50:56.406000+00:00",
+    "train_rows": 1919352,
+    "test_rows": 971474,
+    "stations": 3401
+  },
+  "winner_on_day_three": "xgboost",
+  "models": {
+    "ridge": {
+      "mae": 2.9158015987641,
+      "rmse": 4.713398011513826,
+      "wape": 0.31373152220974115,
+      "empty_recall": 0.2609401890317415,
+      "full_recall": 0.018744391638140186,
+      "fit_seconds": 4.130908291999958,
+      "predict_seconds": 0.1949577909999789,
+      "prediction_rows_per_second": 4982996.550264078
+    },
+    "random_forest": {
+      "mae": 2.6634164119694903,
+      "rmse": 4.303950355415054,
+      "wape": 0.2865756317438656,
+      "empty_recall": 0.15452470573077243,
+      "full_recall": 0.052942935956661906,
+      "fit_seconds": 298.76732029100003,
+      "predict_seconds": 2.967776375000085,
+      "prediction_rows_per_second": 327340.7013356834
+    },
+    "extra_trees": {
+      "mae": 2.666050730731034,
+      "rmse": 4.324359327041102,
+      "wape": 0.2868590765555411,
+      "empty_recall": 0.1360402727799814,
+      "full_recall": 0.03821994748911563,
+      "fit_seconds": 257.22474704199976,
+      "predict_seconds": 3.221826250000049,
+      "prediction_rows_per_second": 301528.9853076295
+    },
+    "hist_gradient_boosting": {
+      "mae": 2.5691755381711525,
+      "rmse": 4.459966953056261,
+      "wape": 0.2764355958773441,
+      "empty_recall": 0.45508425441058725,
+      "full_recall": 0.11868124563794077,
+      "fit_seconds": 31.11718350000001,
+      "predict_seconds": 1.9377245839996249,
+      "prediction_rows_per_second": 501347.8220907931
+    },
+    "lightgbm": {
+      "mae": 2.567293851151491,
+      "rmse": 4.451971827478609,
+      "wape": 0.27623313198773963,
+      "empty_recall": 0.46144359878150915,
+      "full_recall": 0.10884376350161189,
+      "fit_seconds": 17.158687333000216,
+      "predict_seconds": 2.6454615419997936,
+      "prediction_rows_per_second": 367222.87758741336
+    },
+    "xgboost": {
+      "mae": 2.5466170280003984,
+      "rmse": 4.314390645555614,
+      "wape": 0.27400836772243314,
+      "empty_recall": 0.3482270221518696,
+      "full_recall": 0.0695935391671375,
+      "fit_seconds": 22.98580629199978,
+      "predict_seconds": 0.8263707920000343,
+      "prediction_rows_per_second": 1175590.9204496178
+    },
+    "catboost": {
+      "mae": 2.5590793034763095,
+      "rmse": 4.443732316018695,
+      "wape": 0.27534927125198466,
+      "empty_recall": 0.4591474245115453,
+      "full_recall": 0.1166539266841703,
+      "fit_seconds": 47.2091327080002,
+      "predict_seconds": 0.10383224999986851,
+      "prediction_rows_per_second": 9356187.504375858
+    }
+  },
+  "baselines": {
+    "baseline_persistence": {
+      "mae": 2.777199389793242,
+      "rmse": 4.975659817513165,
+      "wape": 0.2988183394950835,
+      "empty_recall": 0.6526472726603411,
+      "full_recall": 0.43387949084383
+    },
+    "baseline_linear_trend": {
+      "mae": 3.9951166989543725,
+      "rmse": 6.714115845237122,
+      "wape": 0.42986259555512235,
+      "empty_recall": 0.6742193467637287,
+      "full_recall": 0.6069660008641031
+    },
+    "baseline_previous_hour": {
+      "mae": 4.133495080671228,
+      "rmse": 6.98517683597426,
+      "wape": 0.444751695127381,
+      "empty_recall": 0.5238636468217083,
+      "full_recall": 0.2753497956063678
+    }
+  },
+  "comparison_to_persistence": {
+    "winner_mae": 2.5466170280003984,
+    "persistence_mae": 2.777199389793242,
+    "mae_improvement_percent": 8.302693808744147
+  },
+  "publication_gate": {
+    "passed": false,
+    "reason": "A 72-hour diagnostic is never a production publication artifact."
+  }
+}

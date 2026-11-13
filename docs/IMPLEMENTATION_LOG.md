@@ -106,3 +106,14 @@ This log records only observed work. Future entries will include exact commands,
 - Completed a real development-only 72-hour diagnostic on 120 sampled Taipei stations: 30,257 feature rows, 15,634 training rows, and 2,211 untouched day-three rows. CatBoost was the best learned candidate at MAE 4.210, but persistence remained better at MAE 4.142, so the improvement was -1.63% and no publication gate passed.
 - Recorded the practice limitations explicitly: Taipei only, publisher `infoTime` used as the observation timestamp, and constant weather placeholders with no predictive signal. These results validate plumbing and time splits but are not formal assignment evidence.
 
+## 2026-11-13
+
+### Completed
+
+- Crossed the early-diagnostic raw-history threshold at 74.07 observed station hours with 98.43% station completeness, 663 complete tracked runs, three partial failures, and no complete failures.
+- Synced 2,678 R2 objects, verified 1,267 source objects, rebuilt 1,732 station snapshots and 73 issue-time weather snapshots, and generated 2,980,672 feature rows across 3,401 stations.
+- Ran the pre-declared official-window diagnostic with 1,919,352 training rows, a 60-minute purge, and 971,474 untouched third-day test rows.
+- XGBoost ranked first on third-day MAE at 2.547 versus persistence at 2.777, an 8.30% preliminary improvement. CatBoost, LightGBM, and Histogram Gradient Boosting followed closely at 2.559, 2.567, and 2.569 MAE.
+- Kept the publication gate closed because the diagnostic has only one test day and does not replace the five-day rolling validation and final holdout.
+- Identified operational-risk recall as the main weakness: XGBoost empty/full recall was 34.82%/6.96%, below persistence at 65.26%/43.39%. The formal report will retain both regression and risk metrics.
+
