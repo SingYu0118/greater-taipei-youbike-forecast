@@ -117,3 +117,16 @@ This log records only observed work. Future entries will include exact commands,
 - Kept the publication gate closed because the diagnostic has only one test day and does not replace the five-day rolling validation and final holdout.
 - Identified operational-risk recall as the main weakness: XGBoost empty/full recall was 34.82%/6.96%, below persistence at 65.26%/43.39%. The formal report will retain both regression and risk metrics.
 
+## 2026-11-15
+
+### Completed
+
+- Closed the formal collection window above 120 observed hours with 99.04% minimum station completeness, 1,228 complete tracked runs, four partial failures, and no complete failures.
+- Rebuilt 4,897,388 feature rows across 3,402 observed stations; 4,858,440 eligible labelled rows across 3,401 stations entered formal evaluation.
+- Completed the seven-model competition with three purged expanding folds and a separate 976,209-row final holdout.
+- Selected CatBoost by mean CV MAE: 2.609 versus 2.611 for XGBoost.
+- CatBoost achieved final MAE 2.026 and RMSE 3.500, versus persistence at 2.056 and 3.701. The regression publication gate passed.
+- Preserved the operational limitation: CatBoost empty/full recall was 35.24%/20.66%, below persistence at 62.76%/53.84%.
+- Generated the versioned model bundle, evaluation report, permutation importance, global SHAP, and a local SHAP example.
+- Published formal metrics and drivers in the public edge product without representing live station inventory as model output.
+

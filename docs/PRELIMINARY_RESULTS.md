@@ -1,5 +1,7 @@
 # 72-Hour Preliminary Results
 
+> The formal five-day evaluation is now available in [Final Five-Day Model Results](./FINAL_RESULTS.md). This page remains as an audit trail of the pre-declared early diagnostic.
+
 ## Evidence boundary
 
 The first official-window diagnostic completed on 2026-11-13. It used the first 48 hours for training, a 60-minute purge, and the third day as one untouched test shared by every candidate. The evaluation contains 1,919,352 training rows, 971,474 test rows, and 3,401 stations.

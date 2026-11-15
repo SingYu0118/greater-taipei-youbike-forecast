@@ -1,5 +1,7 @@
 # Modeling and Time Validation
 
+The formal run is complete. See [Final Five-Day Model Results](./FINAL_RESULTS.md) for the seven-model ranking, untouched holdout metrics, subgroup checks, and SHAP drivers.
+
 ## 1. Objective
 
 Predict `available_bikes(t + 60 minutes)` for each active station. Predictions are clipped to the physical range from zero to station capacity.

@@ -3,8 +3,10 @@ import pytest
 import respx
 from httpx import Response
 
-from youbike_forecast.api.main import app
+from youbike_forecast.api import main as api_main
 from youbike_forecast.collectors.client import NEW_TAIPEI_URL, TAIPEI_URL
+
+app = api_main.app
 
 
 @respx.mock
@@ -68,7 +70,8 @@ async def test_live_station_maps_upstream_failure_to_502() -> None:
 
 
 @pytest.mark.asyncio
-async def test_forecasts_return_503_before_model_gate() -> None:
+async def test_forecasts_return_503_before_model_gate(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(api_main.forecast_service, "model_dir", tmp_path / "missing-model")
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
@@ -78,7 +81,8 @@ async def test_forecasts_return_503_before_model_gate() -> None:
 
 
 @pytest.mark.asyncio
-async def test_drivers_return_503_before_model_gate() -> None:
+async def test_drivers_return_503_before_model_gate(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(api_main.forecast_service, "model_dir", tmp_path / "missing-model")
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:

@@ -18,7 +18,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Modeling and evaluation',
       collapsed: false,
-      items: ['MODELING', 'PRELIMINARY_RESULTS', 'MODEL_CANDIDATE_REVIEW', 'RESEARCH_REFERENCES', 'TESTING'],
+      items: ['FINAL_RESULTS', 'MODELING', 'PRELIMINARY_RESULTS', 'MODEL_CANDIDATE_REVIEW', 'RESEARCH_REFERENCES', 'TESTING'],
     },
     {
       type: 'category',

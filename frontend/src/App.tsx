@@ -47,7 +47,7 @@ function App() {
           ? await fetchForecasts(controller.signal)
           : await fetchStations(controller.signal);
         setData(stationResponse);
-        if (healthResponse.model === "ready") {
+        if (healthResponse.model !== "collecting-training-data") {
           const [metricResponse, driverResponse] = await Promise.all([
             fetchModelMetrics(controller.signal),
             fetchDrivers(controller.signal),
@@ -112,7 +112,7 @@ function App() {
         <div className="top-actions">
           <a className="docs-link" href={docsUrl}><BookOpen size={15} /> DOCUMENTATION</a>
           <div className="model-state">
-            <Database size={15} /> MODEL STATUS: {health?.model === "ready" ? "READY" : "COLLECTING"}
+            <Database size={15} /> MODEL STATUS: {health?.model === "ready" ? "LIVE" : health?.model === "validated-results-ready" ? "VALIDATED" : "COLLECTING"}
           </div>
         </div>
       </header>
@@ -184,8 +184,8 @@ function App() {
         <section className="collection-status" aria-label="Collection evidence gate">
           <div>
             <p className="eyebrow">EVIDENCE GATE</p>
-            <h3>{quality?.minimum_requirement.five_days_met ? "Five-day history complete" : collectionStarted ? "Building the required history" : "Official collection not started"}</h3>
-            <p>{collectionStarted ? "The model remains unavailable until the full collection window and final time-based evaluation pass." : "The verified five-day clock will begin only after the application and pipeline pass their functional gates."}</p>
+            <h3>{quality?.minimum_requirement.five_days_met ? "Five-day evidence gate passed" : collectionStarted ? "Building the required history" : "Official collection not started"}</h3>
+            <p>{quality?.minimum_requirement.five_days_met ? "Formal time validation is complete. The public App now reports the verified model results while edge forecast serving is finalized." : collectionStarted ? "The model remains unavailable until the full collection window and final time-based evaluation pass." : "The verified five-day clock will begin only after the application and pipeline pass their functional gates."}</p>
           </div>
           <div className="progress-block">
             <div><span>OBSERVED WINDOW</span><strong>{coverageHours.toFixed(1)} / {requiredHours} h</strong></div>
@@ -257,7 +257,7 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
       <div className="inventory"><div><strong>{station.available_bikes}</strong><span>BIKES NOW</span></div><div><strong>{station.available_docks}</strong><span>OPEN DOCKS</span></div></div>
       <div className="capacity-bar"><i style={{ width: `${Math.round(ratio * 100)}%` }} /></div>
       {station.predicted_bikes === undefined ? (
-        <div className="forecast-pending"><Timer /><div><strong>Forecast training in progress</strong><p>The one-hour forecast will appear after the minimum history and final validation gates are complete.</p></div></div>
+        <div className="forecast-pending"><Timer /><div><strong>Validated model serving pending</strong><p>Formal results are published below. This station panel remains live inventory until the CatBoost service is connected.</p></div></div>
       ) : (
         <div className="forecast-ready">
           <div className="forecast-heading"><Timer /><span>ONE HOUR AHEAD</span></div>
@@ -294,7 +294,12 @@ function ModelResults({ metrics, drivers }: { metrics: ModelMetricsResponse; dri
       <div className="metric-grid">
         <ResultMetric value={winner.mae.toFixed(2)} label="MAE · BIKES" />
         <ResultMetric value={`${improvement.toFixed(1)}%`} label="VS PERSISTENCE" />
-        <ResultMetric value={`${(winner.empty_recall * 100).toFixed(0)}%`} label="EMPTY RECALL" />
+        <ResultMetric value={winner.rmse.toFixed(2)} label="RMSE · BIKES" />
+      </div>
+      <div className="validation-summary">
+        <p><strong>{metrics.coverage.final_holdout_rows?.toLocaleString() ?? "976,209"}</strong><span>untouched holdout rows</span></p>
+        <p><strong>{metrics.validation?.folds ?? 3} folds</strong><span>expanding time validation</span></p>
+        <p><strong>{metrics.validation?.purge_minutes ?? 60} min</strong><span>leakage prevention gap</span></p>
       </div>
       <div className="driver-list">
         <div><BarChart3 /><span>TOP MODEL DRIVERS</span></div>
@@ -303,6 +308,7 @@ function ModelResults({ metrics, drivers }: { metrics: ModelMetricsResponse; dri
         ))}
         <small>{drivers.caution}</small>
       </div>
+      <p className="serving-disclosure"><strong>Serving status:</strong> the formal artifact passed the publication gate. The map still shows official live inventory until Python/CatBoost inference is connected to the public edge application.</p>
     </section>
   );
 }

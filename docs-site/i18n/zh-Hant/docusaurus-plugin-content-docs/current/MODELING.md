@@ -1,5 +1,7 @@
 # 模型與時間驗證
 
+正式訓練已完成。七模型排名、final holdout、分群結果與 SHAP drivers 請見[五日正式模型結果](./FINAL_RESULTS.md)。
+
 ## 1. 目標
 
 預測每個營運站點的 `available_bikes(t + 60 minutes)`，預測值會被限制在零到站點容量的物理範圍。

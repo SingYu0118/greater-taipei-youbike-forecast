@@ -11,6 +11,73 @@ const COLLECTION_START_AT = "2026-11-10T07:51:49Z";
 const REQUIRED_HOURS = 120;
 const QUALITY_OBJECT_KEY = "control/collection-quality.json";
 
+const MODEL_METRICS = {
+  created_at: "2026-11-15T15:05:27.776112+00:00",
+  model_id: "catboost-20261115T150527Z",
+  code_version: "d2ce8c27f02cc59a128d824b93bffd2d26a4254e",
+  winner: "catboost",
+  selection_rule: "lowest mean CV MAE, then mean CV RMSE",
+  validation: {
+    folds: 3,
+    validation_hours: 12,
+    purge_minutes: 60,
+    final_holdout_hours: 24,
+  },
+  coverage: {
+    start: "2026-11-10T08:50:56.406000+00:00",
+    end: "2026-11-15T08:10:56.950000+00:00",
+    rows: 4858440,
+    stations: 3401,
+    final_holdout_rows: 976209,
+  },
+  cross_validation: {
+    ridge: { mae: 2.9375401353, rmse: 4.5810315295 },
+    random_forest: { mae: 2.7688278113, rmse: 4.3167240826 },
+    extra_trees: { mae: 2.7530467549, rmse: 4.3106946822 },
+    hist_gradient_boosting: { mae: 2.6414878037, rmse: 4.4175337109 },
+    lightgbm: { mae: 2.6279362008, rmse: 4.3893793 },
+    xgboost: { mae: 2.6109037578, rmse: 4.2696084713 },
+    catboost: { mae: 2.6092097693, rmse: 4.3573270446 },
+  },
+  final_holdout: {
+    catboost: {
+      mae: 2.0258248485,
+      rmse: 3.5003512183,
+      wape: 0.1823992806,
+      empty_recall: 0.352396892,
+      full_recall: 0.2066352252,
+    },
+    baseline_persistence: {
+      mae: 2.0562471766,
+      rmse: 3.7006269989,
+      wape: 0.1851384171,
+      empty_recall: 0.627553852,
+      full_recall: 0.5383639616,
+    },
+  },
+  publication_gate: { beats_persistence_mae: true, passed: true },
+  serving_status: "validated-artifact-not-yet-running-at-edge",
+} as const;
+
+const MODEL_DRIVERS = {
+  model: "catboost",
+  sample_rows: 200,
+  global_shap: [
+    { feature: "available_bikes", mean_absolute_shap: 5.0077814948 },
+    { feature: "neighbor_bike_ratio_mean", mean_absolute_shap: 0.6436324846 },
+    { feature: "bikes_lag_5m", mean_absolute_shap: 0.3765229658 },
+    { feature: "capacity", mean_absolute_shap: 0.2698631492 },
+    { feature: "bikes_lag_15m", mean_absolute_shap: 0.198295144 },
+    { feature: "bikes_rolling_std_60m", mean_absolute_shap: 0.1846700832 },
+    { feature: "hour_sin", mean_absolute_shap: 0.1644985443 },
+    { feature: "bikes_rolling_mean_60m", mean_absolute_shap: 0.1592443353 },
+    { feature: "available_docks", mean_absolute_shap: 0.136350304 },
+    { feature: "nearest_mrt_distance_m", mean_absolute_shap: 0.0933933147 },
+  ],
+  permutation_importance: [],
+  caution: "SHAP values explain model behaviour, not causality. Risk recall remains below persistence and needs threshold-specific optimization.",
+} as const;
+
 type TaipeiRow = Record<string, string | number | null>;
 type NewTaipeiRow = Record<string, string | number | null>;
 
@@ -22,7 +89,8 @@ export default {
       return json({
         status: "ok",
         time: new Date().toISOString(),
-        model: "collecting-training-data",
+        model: "validated-results-ready",
+        forecast_serving: "pending",
         service: "youbike-public-edge",
       });
     }
@@ -42,6 +110,14 @@ export default {
       return json(await publicQualityStatus(env), {
         "cache-control": "public, max-age=60, s-maxage=300",
       });
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/model/metrics") {
+      return json(MODEL_METRICS, { "cache-control": "public, max-age=300, s-maxage=3600" });
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/model/drivers") {
+      return json(MODEL_DRIVERS, { "cache-control": "public, max-age=300, s-maxage=3600" });
     }
 
     if (url.pathname.startsWith("/api/") || url.pathname === "/health") {
@@ -64,7 +140,7 @@ async function liveStations(source: string) {
   return {
     as_of: new Date().toISOString(),
     count: stations.length,
-    model_status: "collecting-training-data",
+    model_status: "validated-results-ready",
     stations,
   };
 }

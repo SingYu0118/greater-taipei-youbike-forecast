@@ -31,7 +31,8 @@ export type LiveResponse = {
 export type HealthResponse = {
   status: string;
   time: string;
-  model: "ready" | "collecting-training-data";
+  model: "ready" | "validated-results-ready" | "collecting-training-data";
+  forecast_serving?: "ready" | "pending";
 };
 
 export type QualityResponse = {
@@ -71,10 +72,16 @@ export type MetricSet = {
 };
 
 export type ModelMetricsResponse = {
+  model_id?: string;
+  created_at?: string;
   winner: string;
   selection_rule: string;
-  coverage: { start: string; end: string; rows: number; stations: number };
+  coverage: { start: string; end: string; rows: number; stations: number; final_holdout_rows?: number };
+  validation?: { folds: number; validation_hours: number; purge_minutes: number; final_holdout_hours: number };
+  cross_validation?: Record<string, { mae: number; rmse: number }>;
   final_holdout: Record<string, MetricSet>;
+  publication_gate?: { beats_persistence_mae: boolean; passed: boolean };
+  serving_status?: string;
 };
 
 export type DriverResponse = {

@@ -105,3 +105,16 @@
 - XGBoost 第三日 MAE 為 2.547，Persistence 為 2.777，初步改善 8.30%；CatBoost、LightGBM 與 Histogram Gradient Boosting 分別為 2.559、2.567 與 2.569。
 - 因早期診斷只有一個測試日，不能取代五日 rolling validation 與 final holdout，因此 publication gate 仍維持關閉。
 - 確認營運風險 recall 是主要弱點：XGBoost empty/full recall 為 34.82%／6.96%，低於 Persistence 的 65.26%／43.39%；正式報告會同時保留 regression 與 risk metrics。
+
+## 2026-11-15
+
+### 已完成
+
+- 正式收集超過 120 小時，最低站點完整率 99.04%，1,228 次完整 tracked runs、四次 partial failure、零次完整 failure。
+- 重建 3,402 個觀測站、4,897,388 筆 features；其中 3,401 站、4,858,440 筆 eligible labelled rows 進入正式評估。
+- 完成七模型、三個 purged expanding folds 與獨立 976,209 筆 final holdout。
+- CatBoost 以平均 CV MAE 2.609 勝過 XGBoost 2.611，依事先規則勝出。
+- CatBoost final MAE/RMSE 為 2.026/3.500；Persistence 為 2.056/3.701，通過 regression publication gate。
+- 保留營運弱點：CatBoost 空站／滿站 recall 35.24%／20.66%，低於 Persistence 的 62.76%／53.84%。
+- 產出版本化 model bundle、evaluation、permutation importance、global SHAP 與 local SHAP example。
+- 公開 Edge App 顯示正式 metrics 與 drivers，同時不把 live inventory 說成模型預測。
