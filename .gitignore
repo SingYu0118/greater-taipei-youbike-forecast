@@ -20,6 +20,7 @@ docs-site/node_modules/
 .wrangler/
 .presentation-build/
 ~$*.pptx
+presentation/*SPEAKER_NOTES_ZH.md
 data/raw/
 data/cloud_raw/
 data/cloud_evidence/
