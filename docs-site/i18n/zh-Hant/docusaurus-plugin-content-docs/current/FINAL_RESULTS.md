@@ -6,7 +6,7 @@
 
 CatBoost 在完全未參與選模的最後 24 小時 holdout 上，MAE 為 **2.026 輛**，優於 Persistence 的 **2.056 輛**，相對改善 **1.48%**，因此通過事先定義的 publication gate。
 
-這裡的「正式」是指模型評估已完成且通過門檻。公開 App 已顯示這些正式結果；逐站 CatBoost 即時推論仍需連接可執行 Python 模型的 serving 環境，因此目前地圖不會把 live inventory 假裝成預測值。
+這裡的「正式」是指模型評估已完成且通過門檻。公開 App 現在會讀取版本化的 R2 批次預測快照，顯示每個合格站點的一小時後預測、經驗不確定區間與天氣 what-if。畫面會明確顯示預測起算時間；系統不會宣稱免費 Cloudflare Worker 內直接執行 CatBoost。
 
 ## 如何避免偷看到未來
 

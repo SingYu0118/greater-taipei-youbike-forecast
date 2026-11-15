@@ -4,7 +4,7 @@
 
 The formal model competition completed on 2026-11-15 using only immutable observations collected after the declared official start. The evaluation covers **4,858,440 labelled rows** from **3,401 stations** across Taipei and New Taipei.
 
-The publication gate passed. CatBoost achieved lower MAE than persistence on the untouched final holdout. This page reports the validated artifact; the public edge application displays these results while per-station CatBoost inference is connected to a Python serving environment.
+The publication gate passed. CatBoost achieved lower MAE than persistence on the untouched final holdout. The public application now displays a versioned R2 batch snapshot containing station-level forecasts, empirical uncertainty bounds, and weather what-if outputs. The forecast origin time is shown explicitly; the application does not claim that CatBoost runs natively inside the free Cloudflare Worker.
 
 ## Leakage-safe evaluation
 

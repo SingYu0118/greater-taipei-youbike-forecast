@@ -20,7 +20,7 @@ docs-site/node_modules/
 .wrangler/
 .presentation-build/
 ~$*.pptx
-presentation/*SPEAKER_NOTES_ZH.md
+presentation/*SPEAKER_NOTES*.md
 data/raw/
 data/cloud_raw/
 data/cloud_evidence/
@@ -35,6 +35,7 @@ data/logs/
 artifacts/models/
 artifacts/reports/
 artifacts/practice/
+artifacts/serving/
 *.duckdb
 .DS_Store
 

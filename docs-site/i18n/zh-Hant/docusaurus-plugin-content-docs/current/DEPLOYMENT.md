@@ -3,9 +3,9 @@
 ## 1. 目標拓撲
 
 - Cloudflare Worker Cron：每五分鐘排程收集。
-- Cloudflare R2：不可變壓縮 raw objects 與 run manifests。
-- Google Cloud Run：容器化 FastAPI 與 Python 模型 runtime。
-- Vercel 或 Cloudflare Pages：React production build。
+- Cloudflare R2：不可變 raw evidence 與版本化公開預測快照。
+- Cloudflare Worker with Static Assets：React production build 與同源 Edge API。
+- 選用 Cloud Run：未來若需要 request-time scoring，可提供原生 Python inference。
 - GitHub Actions：每次 push 執行測試與建置。
 
 ## 2. Secret 政策
@@ -47,11 +47,11 @@ docker build --build-arg GIT_COMMIT="$(git rev-parse HEAD)" -t greater-taipei-yo
 docker run --rm -p 8080:8080 --env-file .env greater-taipei-youbike-api
 ```
 
-Cloud Run 上將 R2 values 放入 secrets，並在 build 時附上版本化 model artifact，或啟動時下載。Minimum instances 設為零以維持免費額度，並接受閒置後 demo 的 cold start。
+FastAPI image 保留為原生 Python 參考 runtime。目前公開 demo 不需要 Cloud Run：離線 publisher 載入正式 CatBoost，將版本化逐站預測寫入 R2。未來若必須 request-time scoring，Cloud Run 可掛載 artifact 或啟動時下載固定版本；R2 values 必須放在 secret store。
 
 ## 5. Frontend
 
-將 `VITE_API_BASE_URL` 設為 Cloud Run HTTPS URL：
+目前同源 Worker 部署可讓 `VITE_API_BASE_URL` 保持空白；若使用獨立 backend，再設為其 HTTPS API origin：
 
 ```bash
 cd frontend
@@ -71,19 +71,19 @@ npm run build
 
 中英雙語 Docusaurus 網站位於 `docs-site`。英文位於 `/`，繁中位於 `/zh-Hant/`，共用文件 routes 位於 `/docs`。Production command 為 `npm ci && npm run build`，靜態輸出為 `docs-site/build`。Cloudflare Pages 或 Vercel 無需 server 或 runtime secret 即可部署：root directory 設 `docs-site`、build command 設 `npm run build`、output directory 設 `build`。文件站 build 時將 `PRODUCT_APP_URL` 設為已部署的 React App 網址；React build environment 將 `VITE_DOCS_URL` 設為文件站網址。這兩個公開設定建立「產品 ↔ 文件」雙向連結，並非憑證。
 
-公開產品使用 `infra/app-worker/wrangler.toml` 部署為 Cloudflare Worker with Static Assets。同源 Edge API 在資料收集期間提供即時站點；validated model artifact 尚未產生前，正式預測、metrics、drivers 與 what-if endpoints 維持不可用。
+公開產品使用 `infra/app-worker/wrangler.toml` 部署為 Cloudflare Worker with Static Assets。同源 Edge API 提供 live inventory、正式 metrics／drivers 與已發布的逐站 forecast snapshot。離線 publisher 寫入 `control/latest-forecasts.json`，App 會明確顯示預測起算時間。
 
-同一 Worker 將 raw R2 bucket 綁定為 `RAW_BUCKET`，但公開品質 route 只會執行
-`get("control/collection-quality.json")`。程式會驗證 control object schema，再只回傳更新時間、
-已驗證執行次數、累積時數、完整率與 gate 狀態。Raw object keys、payload、cost-guard
-細節與憑證都不會進入 response。五分鐘 shared-cache header 在維持 App 自動更新的同時，
-限制 Class B reads。
+同一 Worker 將 raw R2 bucket 綁定為 `RAW_BUCKET`。公開品質 route 只讀取
+`control/collection-quality.json`；forecast 與 what-if routes 只讀取
+`control/latest-forecasts.json`。回應會驗證 schema 並移除內部欄位；raw keys、payload、
+cost guard 與 credentials 都不會回傳。Shared-cache header 可限制 Class B reads。
 
 本機 Wrangler 完成登入後，可重現發布：
 
 ```bash
 make deploy-product
 make deploy-docs
+youbike-publish-forecasts
 ```
 
 ## 7. Rollback

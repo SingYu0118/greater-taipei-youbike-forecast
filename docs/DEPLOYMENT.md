@@ -3,9 +3,9 @@
 ## 1. Target topology
 
 - Cloudflare Worker Cron: scheduled collection every five minutes.
-- Cloudflare R2: immutable compressed raw objects and run manifests.
-- Google Cloud Run: containerized FastAPI and Python model runtime.
-- Vercel or Cloudflare Pages: React production build.
+- Cloudflare R2: immutable raw evidence plus the versioned public forecast snapshot.
+- Cloudflare Worker with Static Assets: React production build and same-origin Edge API.
+- Optional Cloud Run: native Python inference if future requirements demand request-time scoring.
 - GitHub Actions: tests and builds on every push.
 
 ## 2. Secret policy
@@ -49,11 +49,11 @@ docker build --build-arg GIT_COMMIT="$(git rev-parse HEAD)" -t greater-taipei-yo
 docker run --rm -p 8080:8080 --env-file .env greater-taipei-youbike-api
 ```
 
-For Cloud Run, store R2 access values as secrets and mount the trained model artifact during the deployment build or download a versioned object during startup. Set minimum instances to zero to remain within the free tier; expect a cold start during an inactive demo.
+The supplied FastAPI image remains the reference native-Python runtime. The current public demo does not require Cloud Run: the offline publisher loads the validated CatBoost artifact and stores a versioned forecast snapshot in R2. If request-time scoring is needed later, Cloud Run can mount the artifact or download a pinned object at startup; keep all R2 values in its secret store.
 
 ## 5. Frontend
 
-Set `VITE_API_BASE_URL` to the Cloud Run HTTPS URL and build:
+For the current same-origin Worker deployment, leave `VITE_API_BASE_URL` empty. For an optional separate backend, set it to that HTTPS API origin before building:
 
 ```bash
 cd frontend
@@ -82,22 +82,22 @@ URL. These public configuration values create the bidirectional Product ↔ Docu
 they are not credentials.
 
 The public product is deployed as a Cloudflare Worker with Static Assets using
-`infra/app-worker/wrangler.toml`. Its same-origin Edge API serves the live station endpoint while
-the model is collecting data. The formal forecast, metrics, drivers, and what-if endpoints stay
-unavailable until a validated model artifact exists.
+`infra/app-worker/wrangler.toml`. Its same-origin Edge API serves live inventory, formal metrics
+and drivers, and the published station-level forecast snapshot. The offline publisher writes
+`control/latest-forecasts.json`; the App always displays its forecast origin time.
 
-The same Worker binds the raw R2 bucket as `RAW_BUCKET`, but the public quality route only calls
-`get("control/collection-quality.json")`. It validates the control-object schema and returns a
-sanitized subset: update time, verified run counts, observed hours, completeness, and gate state.
-Raw object keys, payloads, cost-guard details, and credentials never enter the response. A
-five-minute shared-cache header limits Class B reads while allowing the App to advance without a
-new deployment.
+The same Worker binds the raw R2 bucket as `RAW_BUCKET`. The public quality route reads only
+`control/collection-quality.json`; forecast and what-if routes read only
+`control/latest-forecasts.json`. Responses are schema-checked and sanitized. Raw history keys,
+payloads, cost-guard details, and credentials never enter a public response. Cache headers limit
+Class B reads while allowing a new snapshot to appear without rebuilding the frontend.
 
 With Wrangler authenticated locally, reproducible releases are:
 
 ```bash
 make deploy-product
 make deploy-docs
+youbike-publish-forecasts
 ```
 
 ## 7. Rollback

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import {
   AttributionControl,
+  LngLatBounds,
   Map as MapLibreMap,
   NavigationControl,
   setWorkerUrl,
@@ -11,6 +12,7 @@ import {
 } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { Station } from "./types";
+import type { MrtStation } from "./mrt";
 
 setWorkerUrl(workerUrl);
 
@@ -18,12 +20,13 @@ type Props = {
   stations: Station[];
   focusRegion: "all" | "taipei" | "new_taipei";
   selectedId?: string;
+  focusMrtStations?: MrtStation[];
   onSelect: (station: Station) => void;
 };
 
 const mapStyle = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-export default function StationMap({ stations, focusRegion, selectedId, onSelect }: Props) {
+export default function StationMap({ stations, focusRegion, selectedId, focusMrtStations = [], onSelect }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -50,6 +53,10 @@ export default function StationMap({ stations, focusRegion, selectedId, onSelect
         type: "geojson",
         data: featureCollection([...stationIndex.current.values()]),
       });
+      instance.addSource("selected-mrt", {
+        type: "geojson",
+        data: emptyFeatureCollection(),
+      });
       instance.addLayer({
         id: "station-halo",
         type: "circle",
@@ -59,6 +66,17 @@ export default function StationMap({ stations, focusRegion, selectedId, onSelect
           "circle-color": statusColorExpression,
           "circle-opacity": 0.2,
           "circle-blur": 0.5,
+        },
+      });
+      instance.addLayer({
+        id: "selected-mrt",
+        type: "circle",
+        source: "selected-mrt",
+        paint: {
+          "circle-radius": 10,
+          "circle-color": "#ffd83d",
+          "circle-stroke-color": "#27231c",
+          "circle-stroke-width": 3,
         },
       });
       instance.addLayer({
@@ -99,16 +117,46 @@ export default function StationMap({ stations, focusRegion, selectedId, onSelect
     if (!instance) return;
     const view = regionViews[focusRegion];
     const moveToRegion = () => instance.easeTo({ ...view, duration: 850 });
-    if (instance.loaded()) moveToRegion();
+    if (instance.isStyleLoaded()) moveToRegion();
     else instance.once("load", moveToRegion);
   }, [focusRegion]);
 
   useEffect(() => {
     const station = stationIndex.current.get(selectedId ?? "");
-    if (station && map.current) {
-      map.current.easeTo({ center: [station.longitude, station.latitude], zoom: 14, duration: 700 });
-    }
+    const instance = map.current;
+    if (!station || !instance) return;
+    const moveToStation = () => instance.easeTo({
+      center: [station.longitude, station.latitude],
+      zoom: 14,
+      duration: 700,
+    });
+    if (instance.isStyleLoaded()) moveToStation();
+    else instance.once("load", moveToStation);
   }, [selectedId]);
+
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance) return;
+    const update = () => {
+      const source = instance.getSource("selected-mrt") as GeoJSONSource | undefined;
+      source?.setData(focusMrtStations.length ? mrtFeatureCollection(focusMrtStations) : emptyFeatureCollection());
+      if (focusMrtStations.length === 1) {
+        const [station] = focusMrtStations;
+        instance.easeTo({ center: [station.longitude, station.latitude], zoom: 14.2, duration: 850 });
+      } else if (focusMrtStations.length > 1) {
+        const bounds = focusMrtStations.reduce(
+          (current, station) => current.extend([station.longitude, station.latitude]),
+          new LngLatBounds(
+            [focusMrtStations[0].longitude, focusMrtStations[0].latitude],
+            [focusMrtStations[0].longitude, focusMrtStations[0].latitude],
+          ),
+        );
+        instance.fitBounds(bounds, { padding: 70, maxZoom: 12.5, duration: 850 });
+      }
+    };
+    if (instance.isStyleLoaded()) update();
+    else instance.once("load", update);
+  }, [focusMrtStations]);
 
   return <div className="map" ref={container} aria-label="Interactive YouBike station map" />;
 }
@@ -149,5 +197,20 @@ function featureCollection(stations: Station[]): GeoJSON.FeatureCollection {
 
 function stationKey(station: Station): string {
   return `${station.source}:${station.station_id}`;
+}
+
+function mrtFeatureCollection(stations: MrtStation[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: stations.map((station) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [station.longitude, station.latitude] },
+      properties: { name: station.name },
+    })),
+  };
+}
+
+function emptyFeatureCollection(): GeoJSON.FeatureCollection {
+  return { type: "FeatureCollection", features: [] };
 }
 

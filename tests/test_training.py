@@ -88,6 +88,12 @@ def test_full_model_competition_writes_final_artifacts(tmp_path) -> None:
     forecasts = service.forecasts()
     assert len(forecasts) == 2
     assert forecasts[0]["prediction_low"] <= forecasts[0]["predicted_bikes"]
+    snapshot = service.forecast_snapshot()
+    assert snapshot["serving_mode"] == "r2-batch-snapshot"
+    assert snapshot["count"] == 2
+    assert "available_docks" in snapshot["stations"][0]
+    assert "dry_prediction" in snapshot["stations"][0]
+    assert "heavy_rain_prediction" in snapshot["stations"][0]
     scenario = service.what_if(
         "station-0",
         {"forecast_precipitation": 10.0, "forecast_precipitation_probability": 100.0},

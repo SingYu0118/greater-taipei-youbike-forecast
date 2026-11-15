@@ -10,6 +10,7 @@ const NTPC_URL =
 const COLLECTION_START_AT = "2026-11-10T07:51:49Z";
 const REQUIRED_HOURS = 120;
 const QUALITY_OBJECT_KEY = "control/collection-quality.json";
+const FORECAST_OBJECT_KEY = "control/latest-forecasts.json";
 
 const MODEL_METRICS = {
   created_at: "2026-11-15T15:05:27.776112+00:00",
@@ -56,7 +57,7 @@ const MODEL_METRICS = {
     },
   },
   publication_gate: { beats_persistence_mae: true, passed: true },
-  serving_status: "validated-artifact-not-yet-running-at-edge",
+  serving_status: "published-r2-forecast-snapshot",
 } as const;
 
 const MODEL_DRIVERS = {
@@ -89,10 +90,31 @@ export default {
       return json({
         status: "ok",
         time: new Date().toISOString(),
-        model: "validated-results-ready",
-        forecast_serving: "pending",
+        model: "ready",
+        forecast_serving: "snapshot",
         service: "youbike-public-edge",
       });
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/forecasts/latest") {
+      try {
+        return json(await publicForecastSnapshot(env), {
+          "cache-control": "public, max-age=30, s-maxage=60",
+        });
+      } catch (error) {
+        console.error("FORECAST_SNAPSHOT_ERROR", safeError(error));
+        return json({ detail: "Published forecast snapshot unavailable" }, {}, 503);
+      }
+    }
+
+    const whatIfMatch = url.pathname.match(/^\/api\/v1\/stations\/([^/]+)\/what-if$/);
+    if (request.method === "POST" && whatIfMatch) {
+      try {
+        return json(await publicWhatIf(request, env, decodeURIComponent(whatIfMatch[1])));
+      } catch (error) {
+        console.error("FORECAST_WHAT_IF_ERROR", safeError(error));
+        return json({ detail: safeError(error) }, {}, 422);
+      }
     }
 
     if (request.method === "GET" && url.pathname === "/api/v1/stations/live") {
@@ -152,7 +174,9 @@ async function fetchTaipei() {
     source: "taipei" as const,
     station_id: String(row.sno),
     station_name: String(row.sna ?? "").replace(/^YouBike2\.0_/, ""),
+    station_name_en: String(row.snaen ?? "").replace(/^YouBike2\.0_/, ""),
     district: String(row.sarea ?? ""),
+    district_en: String(row.sareaen ?? ""),
     latitude: numeric(row.latitude),
     longitude: numeric(row.longitude),
     capacity: numeric(row.Quantity),
@@ -174,7 +198,9 @@ async function fetchNewTaipei() {
     source: "new_taipei" as const,
     station_id: String(row.sno),
     station_name: String(row.sna ?? "").replace(/^YouBike2\.0_/, ""),
+    station_name_en: String(row.snaen ?? "").replace(/^YouBike2\.0_/, ""),
     district: String(row.sarea ?? ""),
+    district_en: String(row.sareaen ?? ""),
     latitude: numeric(row.lat),
     longitude: numeric(row.lng),
     capacity: numeric(row.tot_quantity),
@@ -196,6 +222,73 @@ type CollectionQuality = {
   minimum_required_completeness: number;
   collection_quality_met: boolean;
 };
+
+type ForecastStation = {
+  source: "taipei" | "new_taipei";
+  station_id: string;
+  station_name_en?: string;
+  district_en?: string;
+  predicted_bikes: number;
+  dry_prediction: number;
+  heavy_rain_prediction: number;
+};
+
+type ForecastSnapshot = {
+  schema_version: number;
+  generated_at: string;
+  as_of: string;
+  count: number;
+  model_status: "ready";
+  serving_mode: "r2-batch-snapshot";
+  model: { model_id: string; model_name: string };
+  stations: ForecastStation[];
+};
+
+async function publicForecastSnapshot(env: Env): Promise<ForecastSnapshot> {
+  const object = await env.RAW_BUCKET.get(FORECAST_OBJECT_KEY);
+  if (!object) throw new Error(`Missing R2 forecast object: ${FORECAST_OBJECT_KEY}`);
+  const snapshot = await object.json<ForecastSnapshot>();
+  if (
+    snapshot.schema_version !== 1 ||
+    snapshot.model_status !== "ready" ||
+    !snapshot.as_of ||
+    !Array.isArray(snapshot.stations) ||
+    snapshot.count !== snapshot.stations.length
+  ) {
+    throw new Error("Malformed R2 forecast snapshot");
+  }
+  return snapshot;
+}
+
+async function publicWhatIf(request: Request, env: Env, stationId: string) {
+  const body = (await request.json()) as {
+    source?: "taipei" | "new_taipei";
+    precipitation?: number;
+    precipitation_probability?: number;
+  };
+  if (!body.source) throw new Error("A station source is required");
+  if (body.precipitation === undefined && body.precipitation_probability === undefined) {
+    throw new Error("At least one scenario value is required");
+  }
+  const snapshot = await publicForecastSnapshot(env);
+  const station = snapshot.stations.find(
+    (candidate) => candidate.source === body.source && candidate.station_id === stationId,
+  );
+  if (!station) throw new Error("Station not found in the published forecast snapshot");
+  const heavyRain =
+    (body.precipitation ?? 0) >= 5 || (body.precipitation_probability ?? 0) >= 50;
+  const scenarioPrediction = heavyRain
+    ? station.heavy_rain_prediction
+    : station.dry_prediction;
+  return {
+    station_id: station.station_id,
+    baseline_prediction: station.predicted_bikes,
+    scenario_prediction: scenarioPrediction,
+    difference: Number((scenarioPrediction - station.predicted_bikes).toFixed(2)),
+    interpretation: "Model response under controlled inputs; not a causal estimate.",
+    forecast_as_of: snapshot.as_of,
+  };
+}
 
 async function publicQualityStatus(env: Env) {
   const object = await env.RAW_BUCKET.get(QUALITY_OBJECT_KEY);

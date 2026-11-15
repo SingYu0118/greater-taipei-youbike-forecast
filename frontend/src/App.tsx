@@ -18,6 +18,7 @@ import type {
   Station,
   WhatIfResponse,
 } from "./types";
+import { distanceMetres, MRT_LINES, MRT_STATIONS, type MrtLineCode } from "./mrt";
 
 const StationMap = lazy(() => import("./StationMap"));
 
@@ -32,6 +33,26 @@ function App() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Station>();
   const [source, setSource] = useState<"all" | "taipei" | "new_taipei">("all");
+  const [mrtLine, setMrtLine] = useState<MrtLineCode | "">("");
+  const [mrtStationKey, setMrtStationKey] = useState("");
+
+  const lineMrtStations = useMemo(
+    () => mrtLine ? MRT_STATIONS.filter((station) => station.lines.includes(mrtLine)) : [],
+    [mrtLine],
+  );
+  const selectedMrt = useMemo(
+    () => MRT_STATIONS.find((station) => station.key === mrtStationKey),
+    [mrtStationKey],
+  );
+  const queryMrtMatches = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return [];
+    return MRT_STATIONS.filter((station) =>
+      station.name.toLowerCase().includes(normalized)
+      || station.nameEn.toLowerCase().includes(normalized),
+    );
+  }, [query]);
+  const activeMrt = selectedMrt ?? (queryMrtMatches.length === 1 ? queryMrtMatches[0] : undefined);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -70,14 +91,38 @@ function App() {
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return (data?.stations ?? []).filter(
-      (station) =>
-        (source === "all" || station.source === source) &&
-        (!normalized ||
-          station.station_name.toLowerCase().includes(normalized) ||
-          station.district.toLowerCase().includes(normalized)),
-    );
-  }, [data, query, source]);
+    const metroTargets = selectedMrt
+      ? [selectedMrt]
+      : queryMrtMatches.length
+        ? queryMrtMatches
+        : lineMrtStations;
+    const metroRadius = selectedMrt || queryMrtMatches.length ? 1_000 : 700;
+    return (data?.stations ?? []).filter((station) => {
+      const matchesMetro = !metroTargets.length
+        || metroTargets.some((metro) => distanceMetres(station, metro) <= metroRadius);
+      return (source === "all" || station.source === source)
+        && matchesMetro
+        && (!normalized || queryMrtMatches.length > 0
+          || station.station_name.toLowerCase().includes(normalized)
+          || station.station_name_en?.toLowerCase().includes(normalized)
+          || station.district.toLowerCase().includes(normalized)
+          || station.district_en?.toLowerCase().includes(normalized));
+    });
+  }, [data, query, source, selectedMrt, lineMrtStations, queryMrtMatches]);
+
+  const nearbyStations = useMemo(() => {
+    if (!activeMrt) return [];
+    return (data?.stations ?? [])
+      .filter((station) => source === "all" || station.source === source)
+      .map((station) => ({ station, distance: distanceMetres(station, activeMrt) }))
+      .filter((item) => item.distance <= 1_000)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 6);
+  }, [data, activeMrt, source]);
+
+  useEffect(() => {
+    if (query.trim() && filtered.length === 1) setSelected(filtered[0]);
+  }, [filtered, query]);
 
   const emptyRisk = filtered.filter((station) => effectiveBikes(station) <= 2).length;
   const fullRisk = filtered.filter(
@@ -99,6 +144,21 @@ function App() {
     setSource(region);
     setSelected(undefined);
     setQuery("");
+    setMrtLine("");
+    setMrtStationKey("");
+  };
+
+  const chooseMrtLine = (line: MrtLineCode | "") => {
+    setMrtLine(line);
+    setMrtStationKey("");
+    setSelected(undefined);
+    setQuery("");
+  };
+
+  const chooseMrtStation = (key: string) => {
+    setMrtStationKey(key);
+    setSelected(undefined);
+    setQuery("");
   };
 
   return (
@@ -108,7 +168,7 @@ function App() {
           <span className="brand-mark"><Bike size={20} /></span>
           <span>VELOCAST</span>
         </a>
-        <div className="live-state"><span className="pulse" /> LIVE NETWORK</div>
+          <div className="live-state"><span className="pulse" /> FORECAST NETWORK</div>
         <div className="top-actions">
           <a className="docs-link" href={docsUrl}><BookOpen size={15} /> DOCUMENTATION</a>
           <div className="model-state">
@@ -127,7 +187,7 @@ function App() {
             </p>
           </div>
           <div className="hero-meta">
-            <span>LAST FEED</span>
+            <span>{health?.model === "ready" ? "FORECAST AS OF" : "LAST FEED"}</span>
             <strong>{data ? new Date(data.as_of).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "—"}</strong>
             <small>ASIA / TAIPEI</small>
           </div>
@@ -135,7 +195,13 @@ function App() {
 
         <section className="dashboard-card">
           <div className="controls">
-            <label className="search"><Search size={18} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search station or district" /></label>
+            <label className="search"><Search size={18} /><input list="mrt-station-suggestions" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search YouBike, district, or Metro in 中文 / English" /></label>
+            <datalist id="mrt-station-suggestions">
+              {MRT_STATIONS.flatMap((station) => [
+                <option key={`${station.key}:zh`} value={station.name}>{station.name}（{station.nameEn}）</option>,
+                <option key={`${station.key}:en`} value={station.nameEn}>{station.name}（{station.nameEn}）</option>,
+              ])}
+            </datalist>
             <div className="region-switch" role="group" aria-label="Move map to a city">
               {(["all", "taipei", "new_taipei"] as const).map((item) => (
                 <button
@@ -152,7 +218,44 @@ function App() {
                 </button>
               ))}
             </div>
+            <div className="mrt-filters" aria-label="Filter by Taipei Metro line and station">
+              <div className="mrt-filter-heading"><span className="mrt-symbol">M</span><strong>Explore by Metro</strong><small>Map and nearby YouBike availability update together</small></div>
+              <label>
+                <span>METRO LINE</span>
+                <select value={mrtLine} onChange={(event) => chooseMrtLine(event.target.value as MrtLineCode | "")}>
+                  <option value="">All lines</option>
+                  {MRT_LINES.map((line) => <option key={line.code} value={line.code}>{line.code} · {line.name} / {line.nameEn}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>METRO STATION</span>
+                <select value={mrtStationKey} onChange={(event) => chooseMrtStation(event.target.value)} disabled={!mrtLine}>
+                  <option value="">{mrtLine ? `All ${lineMrtStations.length} stations` : "Select a line first"}</option>
+                  {lineMrtStations.map((station) => <option key={station.key} value={station.key}>{station.stationIds.join(" / ")} · {station.name}（{station.nameEn}）</option>)}
+                </select>
+              </label>
+            </div>
           </div>
+
+          {activeMrt ? (
+            <div className="metro-results" aria-live="polite">
+              <div className="metro-results-title">
+                <span>{activeMrt.stationIds.join(" / ")}</span>
+                <strong>{activeMrt.name}（{activeMrt.nameEn}）</strong>
+                <small>{nearbyStations.length} nearest YouBike stations within 1 km</small>
+              </div>
+              <div className="metro-station-cards">
+                {nearbyStations.map(({ station, distance }) => (
+                  <button key={`${station.source}:${station.station_id}`} onClick={() => setSelected(station)}>
+                    <span>{Math.round(distance)} m</span>
+                    <strong>{bilingualName(station.station_name, station.station_name_en)}</strong>
+                    <div><b>{station.available_bikes}</b><small>BIKES NOW</small></div>
+                    <div><b>{station.predicted_bikes?.toFixed(1) ?? "—"}</b><small>+60 MIN</small></div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="map-wrap">
             {error ? <div className="map-message"><Activity /> Live feed unavailable<br /><small>{error}</small></div> : null}
@@ -161,6 +264,7 @@ function App() {
               <StationMap
                 stations={filtered}
                 focusRegion={source}
+                focusMrtStations={activeMrt ? [activeMrt] : lineMrtStations}
                 selectedId={selected ? `${selected.source}:${selected.station_id}` : undefined}
                 onSelect={setSelected}
               />
@@ -185,7 +289,7 @@ function App() {
           <div>
             <p className="eyebrow">EVIDENCE GATE</p>
             <h3>{quality?.minimum_requirement.five_days_met ? "Five-day evidence gate passed" : collectionStarted ? "Building the required history" : "Official collection not started"}</h3>
-            <p>{quality?.minimum_requirement.five_days_met ? "Formal time validation is complete. The public App now reports the verified model results while edge forecast serving is finalized." : collectionStarted ? "The model remains unavailable until the full collection window and final time-based evaluation pass." : "The verified five-day clock will begin only after the application and pipeline pass their functional gates."}</p>
+            <p>{quality?.minimum_requirement.five_days_met ? "Formal time validation is complete. The map now serves a published CatBoost forecast snapshot for every station." : collectionStarted ? "The model remains unavailable until the full collection window and final time-based evaluation pass." : "The verified five-day clock will begin only after the application and pipeline pass their functional gates."}</p>
           </div>
           <div className="progress-block">
             <div><span>OBSERVED WINDOW</span><strong>{coverageHours.toFixed(1)} / {requiredHours} h</strong></div>
@@ -252,12 +356,12 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
   return (
     <aside className="station-panel" aria-label="Selected station details">
       <button className="close" onClick={onClose} aria-label="Close details"><X /></button>
-      <p className="eyebrow">{station.source.replace("_", " ")} · {station.district}</p>
-      <h2>{station.station_name}</h2>
-      <div className="inventory"><div><strong>{station.available_bikes}</strong><span>BIKES NOW</span></div><div><strong>{station.available_docks}</strong><span>OPEN DOCKS</span></div></div>
+      <p className="eyebrow"><span>{station.source.replace("_", " ").toUpperCase()}</span> · {bilingualName(station.district, station.district_en)}</p>
+      <h2>{bilingualName(station.station_name, station.station_name_en)}</h2>
+      <div className="inventory"><div><strong>{station.available_bikes}</strong><span>BIKES AT ORIGIN</span></div><div><strong>{station.available_docks}</strong><span>DOCKS AT ORIGIN</span></div></div>
       <div className="capacity-bar"><i style={{ width: `${Math.round(ratio * 100)}%` }} /></div>
       {station.predicted_bikes === undefined ? (
-        <div className="forecast-pending"><Timer /><div><strong>Validated model serving pending</strong><p>Formal results are published below. This station panel remains live inventory until the CatBoost service is connected.</p></div></div>
+        <div className="forecast-pending"><Timer /><div><strong>Forecast unavailable for this station</strong><p>The latest published snapshot did not contain an eligible forecast for this station. Current inventory remains visible without being relabelled as a prediction.</p></div></div>
       ) : (
         <div className="forecast-ready">
           <div className="forecast-heading"><Timer /><span>ONE HOUR AHEAD</span></div>
@@ -272,7 +376,7 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
           {scenarioError ? <p className="scenario-error">{scenarioError}</p> : null}
         </div>
       )}
-      <small className="station-id">STATION ID / {station.station_id}</small>
+      <small className="station-id">FORECAST ORIGIN / {station.observation_time ? new Date(station.observation_time).toLocaleString("en-GB", { timeZone: "Asia/Taipei", hour12: false }) : "—"}<br />STATION ID / {station.station_id}</small>
     </aside>
   );
 }
@@ -308,7 +412,7 @@ function ModelResults({ metrics, drivers }: { metrics: ModelMetricsResponse; dri
         ))}
         <small>{drivers.caution}</small>
       </div>
-      <p className="serving-disclosure"><strong>Serving status:</strong> the formal artifact passed the publication gate. The map still shows official live inventory until Python/CatBoost inference is connected to the public edge application.</p>
+      <p className="serving-disclosure"><strong>Serving status:</strong> active. The map reads the validated CatBoost batch snapshot from R2; the displayed forecast time remains visible so a stored prediction is never presented as a newer one.</p>
     </section>
   );
 }
@@ -389,6 +493,13 @@ function prettyFeature(value: string): string {
 
 function formatSigned(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}`;
+}
+
+function bilingualName(chinese: string, english?: string): string {
+  const normalizedEnglish = english?.trim();
+  return normalizedEnglish && normalizedEnglish.toLowerCase() !== chinese.trim().toLowerCase()
+    ? `${chinese}（${normalizedEnglish}）`
+    : chinese;
 }
 
 export default App;

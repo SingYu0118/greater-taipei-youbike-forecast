@@ -1,132 +1,169 @@
-# Implementation Log
+# Engineering Implementation Record
 
-## 2026-11-09
+This page records the implemented system, technical contracts, verification boundaries, and
+operational controls. Model scores are maintained separately in
+[Final Five-Day Model Results](./FINAL_RESULTS.md).
 
-### Completed
+## Runtime architecture
 
-- Confirmed the live Taipei schema against the official endpoint.
-- Confirmed the live New Taipei schema and pagination parameters.
-- Implemented independent asynchronous collectors with bounded retry and timeout.
-- Implemented local atomic gzip storage and an R2-compatible storage adapter.
-- Implemented a Cloudflare Worker scheduled every five minutes.
-- Stored the first verified local raw snapshot: 1,824 Taipei stations, 1,622 New Taipei stations, and three weather grids.
-- Added a five-minute local scheduler that survives individual collection failures and writes JSONL run logs.
-- Versioned 110 official Taipei Metro station coordinates from the Taipei City Data Platform.
-- Rebuilt the first two station snapshots into 3,446 normalized Parquet rows.
-- Added checksum-based object naming, source/date/hour partitions, and dataset manifests.
-- Added source-specific normalization and invariant validation.
-- Added 60-minute label alignment logic, lag and rolling feature definitions.
-- Added persistence, trend, and previous-hour baselines plus Ridge, Random Forest, Extra Trees, Histogram Gradient Boosting, LightGBM, XGBoost, and CatBoost model competitors.
-- Added final 24-hour holdout and three expanding 12-hour validation windows with a 60-minute purge gap.
-- Added out-of-fold uncertainty calibration, final-holdout subgroup metrics, permutation importance, and global/local SHAP reports.
-- Added evidence-gated forecast, metrics, drivers, data-quality, and weather what-if API routes.
-- Built the React/TypeScript map application and FastAPI service.
-- Added responsive desktop/mobile QA, a visible 120-hour collection gate, and live scheduler outcomes.
-- Removed known frontend dependency advisories and verified zero reported npm vulnerabilities in both Node projects.
-- Passed Python lint and 11 tests, frontend lint and production build, Cloudflare Worker typecheck, and the first GitHub Actions workflow.
+| Component | Implementation | Responsibility |
+|---|---|---|
+| Scheduled collector | Cloudflare Worker Cron | Fetch Taipei, paged New Taipei, and issue-time Open-Meteo data |
+| Evidence store | Cloudflare R2 Standard | Retain immutable compressed responses, manifests, and control objects |
+| Reproducible pipeline | Python, Polars, DuckDB, Parquet | Normalize raw objects, validate invariants, align labels, and build features |
+| Model pipeline | scikit-learn, LightGBM, XGBoost, CatBoost | Run baselines, temporal validation, final evaluation, and explanation |
+| Inference service | FastAPI `ForecastService` | Load the validated artifact and produce bounded station forecasts |
+| Public serving layer | Cloudflare Worker + R2 snapshot | Serve forecast, quality, metrics, drivers, and what-if contracts |
+| Product | React, TypeScript, MapLibre | Search, city navigation, risk map, station detail, and evidence |
+| Documentation | Docusaurus | Publish English and Traditional Chinese technical contracts |
 
-### Evidence still pending
+## Collection and failure handling
 
-- Cloud deployment credentials and public URLs.
-- Five complete days of scheduled raw objects.
-- First eligible one-hour labels.
-- Real-history model results, SHAP drivers, and what-if measurements.
-- Public deployment smoke tests.
+The collector runs on a five-minute Cron. Taipei and New Taipei are fetched independently, so one
+upstream failure does not discard a successful source. Requests use bounded timeout and retry; New
+Taipei pagination also has a safety limit.
 
-This log records only observed work. Future entries will include exact commands, test outcomes, deployment revisions, collection coverage, and model metrics.
+Every run writes a source-level manifest. A run can be complete, partial, or failed without hiding
+the failed upstream. The quality controller reconstructs its state from immutable objects instead
+of trusting process-local counters.
 
-## 2026-11-10
+Raw station object contract:
 
-### Completed
+```text
+source={source}/date=YYYY-MM-DD/hour=HH/
+YYYYMMDDTHHMMSS.ffffffZ-{sha256-prefix}.json.gz
+```
 
-- Added a versioned macOS LaunchAgent and verified that it starts, remains running, writes successful snapshots, and can be stopped cleanly.
-- Separated retained development snapshots from the not-yet-started official five-day evidence window.
-- Added an explicit `COLLECTION_START_AT` configuration with timezone validation.
-- Enforced serving gates for five-day duration, 95% collection completeness, and final-holdout MAE improvement over persistence.
-- Changed every temporal and spatial station join to the compound `(source, station_id)` key and added a collision regression test.
-- Connected the React application to ready-state forecasts, uncertainty ranges, final metrics, SHAP drivers, and interactive weather what-if scenarios.
-- Changed map risk colors and network statistics to use one-hour predictions when the model is ready.
-- Built and health-checked the production container as an unprivileged user; verified HTTP 200 health and HTTP 503 before model publication.
-- Verified desktop and 390-pixel mobile layouts, live map rendering, station search, city filtering, zero horizontal overflow, and zero browser console errors.
-- Passed Python lint and 15 tests, frontend lint and production build, Worker typecheck, and zero-vulnerability npm audits.
-- Started the official evidence window at 2026-11-10 15:51:49 Asia/Taipei and verified the first local run for 1,824 Taipei and 1,622 New Taipei stations.
-- Enabled R2 Standard storage on the free tier, created `greater-taipei-youbike-raw`, and deployed Worker version `5f39a239-6e3a-42d5-ac3b-0df9682fff6b` with a five-minute Cron.
-- Added fail-closed Cloudflare cost controls: a fixed stop time, 1 MB object limit, conservative 10,000-write and 8 GB stops, and an 80% warning state.
-- Removed R2 reads from the public health route so unsolicited traffic cannot consume Class B operations.
-- Deployed Worker version `cfe13c8e-882d-40d5-bf51-ef0902ced73a` with an authoritative private R2 quality state reconstructed from immutable object keys and updated from every later manifest.
-- Verified the first cloud quality report at 18.82 observed hours: 215/226 Taipei objects, 215/226 New Taipei objects, 95.13% minimum station completeness, and three complete tracked runs with no post-initialization failure.
-- Rebuilt the current local preview dataset (237,774 station rows), created 183,492 feature rows across 3,399 stations, and found 94,936 currently eligible labelled rows across 56 timestamps.
-- Confirmed that training fails closed with `Not enough time coverage to create at least two valid expanding folds`; no provisional model was published.
-- Restored the missing `youbike-build-features` editable CLI and pinned its Hatchling editable build requirement.
-- Created a bucket-scoped Object Read Only credential workflow and completed the first authenticated sync: 795 listed objects, 534 verified source snapshots, and approximately 56 MB downloaded without exposing credentials.
-- Separated `data/cloud_raw` formal evidence from `data/raw` laptop backup data, then rebuilt 516 cloud-only station snapshots into 889,068 normalized rows and 876,684 feature rows across 3,399 stations.
-- Re-ran the formal trainer on cloud-only features; it correctly remained closed because the current 21-hour range cannot form the required purged expanding folds and final holdout.
-- Diagnosed and fixed R2's fixed-length upload requirement, then verified successful 16:50, 16:55, 17:00, and 17:05 Asia/Taipei Cron runs; the 17:00 run also exercised the hourly weather path.
+The uncompressed JSON SHA-256 is stored in metadata and repeated in the filename. R2 sync validates
+gzip integrity, metadata checksum, filename checksum, and byte count before formal processing.
 
-### Remaining evidence
+## Cost and security controls
 
-- Complete at least 120 hours of official collection with at least 95% snapshot completeness.
-- Build the final reproducible dataset and run model selection on real history.
-- Publish final-holdout metrics, drivers, what-if results, production application URLs, and the final presentation.
+- The official collection has a fixed stop condition and fails closed on object-size, write-count,
+  or storage-volume limits.
+- An 80% warning state is written before a hard cost guard is reached.
+- The public health route does not read R2.
+- R2 access is bucket-bound; the local S3 credential remains read-only.
+- Credentials come only from `.env` or platform secrets and are excluded from Git.
+- Public Worker responses are cached and remain subject to Free-plan limits.
 
-## 2026-11-11
+## Normalized data contract
 
-### Completed
+Taipei and New Taipei are mapped into one station schema containing compound identity
+`(source, station_id)`, station metadata, coordinates, capacity, bikes, docks, upstream update time,
+and collector fetch time.
 
-- Reviewed model families against the actual five-day, multi-station, direct 60-minute forecasting design and documented explicit inclusion and deferral criteria.
-- Expanded the formal competition from four to seven learned candidates by adding Random Forest, Histogram Gradient Boosting, and XGBoost.
-- Retained one shared leakage-safe evaluation protocol for every candidate rather than giving any model a favourable split.
-- Added XGBoost to the reproducible model dependency group and verified installation in the project environment.
-- Selected the CPU-only XGBoost package for Linux containers after a Docker build exposed the standard package's unnecessary NVIDIA NCCL dependency.
-- Rebuilt the production image successfully and verified inside the Linux container that XGBoost 3.4.1 imports and all seven candidate factories are available.
-- Passed Python lint and all 20 tests, including the complete synthetic seven-model competition, artifact serialization, API inference, prediction intervals, and weather what-if flow.
-- Re-ran the formal trainer and confirmed that it still fails closed before fitting candidates because the official history has not yet reached the required time coverage.
-- Deployed the React product and same-origin live-station Edge API to `https://greater-taipei-youbike-app.singyu-bravetalk.workers.dev`.
-- Deployed the bilingual Docusaurus site to `https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev`.
-- Verified HTTP 200 for the product, English documentation, and Traditional Chinese documentation; the public Edge API returned 3,446 normalized live stations during the observed smoke test.
-- Kept the model fail-closed in `collecting-training-data`; deployment does not publish preview metrics or forecasts.
+Every temporal and spatial join uses the compound identity. Numeric station IDs can collide across
+municipalities, so `station_id` alone is never a valid join key. Normalization rejects malformed
+coordinates, negative inventory, and inconsistent capacity.
 
-### Deferred by evidence, not omitted
+Parquet artifacts are reproducible from R2 raw history. Development data, practice history, laptop
+backup snapshots, and the formal evidence window use physically separate directories.
 
-- ARIMA/ARIMAX require a separate station-level rolling design and more repeated seasonal history.
-- Global neural sequence and graph models require at least one month of history to justify their additional variance and operational cost.
+## Target and feature contract
 
-## 2026-11-12
+For each station row at time `t`, the target is the same compound station at `t + 60 minutes`.
+Only the closest observation within ±7 minutes is accepted. Rows without a valid future target stay
+available for inference but are excluded from supervised evaluation.
 
-### Completed
+The 35 model inputs cover:
 
-- Added the pre-declared 72-hour diagnostic: first 48 hours for training, a 60-minute purge, and the third day as one untouched test shared by all models and baselines.
-- Added `make early-diagnostic` to sync R2, rebuild the formal dataset and features, and write a preliminary evaluation without publishing a serving artifact.
-- Replaced the product's deployment-time quality snapshot with a live sanitized read of `control/collection-quality.json` from R2.
-- Verified automatic progress without redeployment: the public API advanced from 53.99 to 54.07 observed hours and from 425 to 426 complete runs after the next collector cycle.
-- Kept the public health route independent of R2 and added five-minute shared caching to the quality route.
-- Drafted four English model-selection slides; model-score fields remain intentionally absent until the evidence gates pass.
-- Verified that the official Taipei and New Taipei station feeds expose current snapshots rather than a downloadable five-minute inventory archive; official OD and daily availability-rate datasets answer different questions.
-- Added a physically isolated practice importer for the MIT-licensed `tses89214/youbike-historical-data` Taipei archive. The default command downloads only four daily CSV files and never writes to formal R2, raw, processed, feature, or model paths.
-- Completed a real development-only 72-hour diagnostic on 120 sampled Taipei stations: 30,257 feature rows, 15,634 training rows, and 2,211 untouched day-three rows. CatBoost was the best learned candidate at MAE 4.210, but persistence remained better at MAE 4.142, so the improvement was -1.63% and no publication gate passed.
-- Recorded the practice limitations explicitly: Taipei only, publisher `infoTime` used as the observation timestamp, and constant weather placeholders with no predictive signal. These results validate plumbing and time splits but are not formal assignment evidence.
+- current inventory, docks, capacity, and bike ratio;
+- 5, 15, 30, and 60-minute lags, deltas, rolling mean, and variation;
+- hour, weekday, weekend, cyclic hour encoding, and Taiwan holidays;
+- nearest MRT distance and station/district/source codes;
+- up to five neighbours within one kilometre and their current bike statistics;
+- issue-time temperature, apparent temperature, humidity, precipitation, probability, weather
+  code, wind speed, and gusts.
 
-## 2026-11-13
+Weather joins use forecasts archived at issue time. Future station state and realized future weather
+never enter a prediction-time row.
 
-### Completed
+## Temporal evaluation contract
 
-- Crossed the early-diagnostic raw-history threshold at 74.07 observed station hours with 98.43% station completeness, 663 complete tracked runs, three partial failures, and no complete failures.
-- Synced 2,678 R2 objects, verified 1,267 source objects, rebuilt 1,732 station snapshots and 73 issue-time weather snapshots, and generated 2,980,672 feature rows across 3,401 stations.
-- Ran the pre-declared official-window diagnostic with 1,919,352 training rows, a 60-minute purge, and 971,474 untouched third-day test rows.
-- XGBoost ranked first on third-day MAE at 2.547 versus persistence at 2.777, an 8.30% preliminary improvement. CatBoost, LightGBM, and Histogram Gradient Boosting followed closely at 2.559, 2.567, and 2.569 MAE.
-- Kept the publication gate closed because the diagnostic has only one test day and does not replace the five-day rolling validation and final holdout.
-- Identified operational-risk recall as the main weakness: XGBoost empty/full recall was 34.82%/6.96%, below persistence at 65.26%/43.39%. The formal report will retain both regression and risk metrics.
+The final 24 hours are removed before selection as an untouched holdout. The remaining development
+window creates three expanding folds, each with a 12-hour validation window and a 60-minute purge.
 
-## 2026-11-15
+Persistence, recent trend, and previous-hour baselines use the same timestamps as Ridge, Random
+Forest, Extra Trees, Histogram Gradient Boosting, LightGBM, XGBoost, and CatBoost. Selection uses
+mean validation MAE, then RMSE. The final holdout is evaluated once after selection.
 
-### Completed
+Publication fails closed unless:
 
-- Closed the formal collection window above 120 observed hours with 99.04% minimum station completeness, 1,228 complete tracked runs, four partial failures, and no complete failures.
-- Rebuilt 4,897,388 feature rows across 3,402 observed stations; 4,858,440 eligible labelled rows across 3,401 stations entered formal evaluation.
-- Completed the seven-model competition with three purged expanding folds and a separate 976,209-row final holdout.
-- Selected CatBoost by mean CV MAE: 2.609 versus 2.611 for XGBoost.
-- CatBoost achieved final MAE 2.026 and RMSE 3.500, versus persistence at 2.056 and 3.701. The regression publication gate passed.
-- Preserved the operational limitation: CatBoost empty/full recall was 35.24%/20.66%, below persistence at 62.76%/53.84%.
-- Generated the versioned model bundle, evaluation report, permutation importance, global SHAP, and a local SHAP example.
-- Published formal metrics and drivers in the public edge product without representing live station inventory as model output.
+1. the verified collection window is at least 120 hours;
+2. minimum station completeness is at least 95%;
+3. the selected model beats persistence on final-holdout MAE.
 
+## Model artifact contract
+
+| Artifact | Content |
+|---|---|
+| `model.joblib` | fitted pipeline, feature order, category maps, q90 residual band, metadata |
+| `evaluation.json` | fold ranking, final and segment metrics, timings, publication decision |
+| `drivers.json` | global/local SHAP, permutation importance, interpretation cautions |
+
+`ForecastService` refuses inference when required evidence is missing. Predictions are clipped to
+`[0, capacity]` and include an empirical q90 error band.
+
+## Public forecast snapshot
+
+The Python publisher loads the validated artifact, scores each freshest station row, and scores dry
+and heavy-rain controlled scenarios. It publishes:
+
+```text
+control/latest-forecasts.json
+```
+
+The object contains schema version, generation time, forecast origin, model metadata, station
+count, point predictions, bounded intervals, and scenario predictions. Stations more than 15
+minutes older than the maximum observation time are excluded.
+
+| Public route | Contract |
+|---|---|
+| `GET /health` | serving state without an R2 quality read |
+| `GET /api/v1/forecasts/latest` | published station forecast snapshot |
+| `POST /api/v1/stations/{id}/what-if` | precomputed controlled weather response |
+| `GET /api/v1/model/metrics` | sanitized formal evaluation |
+| `GET /api/v1/model/drivers` | sanitized explanation report |
+| `GET /api/v1/data/quality` | sanitized collection-quality state |
+| `GET /api/v1/stations/live` | normalized official live-inventory fallback |
+
+The UI always displays the forecast origin. A stored prediction is never presented as newer data.
+
+## Product navigation
+
+The React client embeds the versioned official MRT coordinate reference used by feature
+engineering. Users can filter the network by one of five Taipei Metro lines, then select a station
+in `Chinese name (English name)` format. A line selection fits the complete route and keeps
+YouBike stations within 700 metres; a station selection moves to that coordinate and lists the six
+nearest YouBike stations within one kilometre with bikes now and the +60-minute prediction.
+Chinese and English MRT names are both accepted by the main search field. The forecast publisher
+also enriches each station with the official YouBike `snaen` and `sareaen` values. Search and the
+station panel therefore support both languages without machine translated names.
+
+## Verification gates
+
+The repository verifies source normalization, upstream failure mapping, compound identity,
+cross-city collisions, temporal order, purge gaps, label tolerance, issue-time weather joins,
+seven-model artifacts, inference, intervals, what-if behaviour, and ready/not-ready API contracts.
+
+Release checks include Python Ruff and Pytest, React ESLint/TypeScript/build, bilingual Docusaurus
+typecheck/build, Worker bundling and HTTP smoke tests, plus desktop and 375-pixel mobile QA for the
+map, bilingual MRT search, line/station navigation, station panel, console, and overflow.
+
+## Known engineering limits
+
+- Five days do not contain repeated weekly or seasonal regimes.
+- Bike-count error is optimized; empty/full recall needs a separate objective.
+- Public prediction uses a versioned R2 batch snapshot, not CatBoost inside a free Worker isolate.
+- Event data is deferred until a reliable geocoded event history exists.
+- Automatic refresh still needs a bounded scheduled Python publisher; the serving contract is
+  independent of scheduler choice.
+
+## Next production increment
+
+1. Run the publisher hourly and reject snapshots outside a declared freshness SLO.
+2. Add a dedicated empty/full classifier and tune thresholds on development folds.
+3. Add previous-day and previous-week baselines after repeated cycles exist.
+4. Monitor snapshot age, feature drift, prediction drift, and segment error.
+5. Compare one global sequence or graph model under the same untouched holdout after one month.

@@ -2,7 +2,9 @@ export type Station = {
   source: "taipei" | "new_taipei";
   station_id: string;
   station_name: string;
+  station_name_en?: string;
   district: string;
+  district_en?: string;
   latitude: number;
   longitude: number;
   capacity: number;
@@ -11,6 +13,8 @@ export type Station = {
   predicted_bikes?: number;
   prediction_low?: number;
   prediction_high?: number;
+  dry_prediction?: number;
+  heavy_rain_prediction?: number;
   observation_time?: string;
 };
 
@@ -25,6 +29,8 @@ export type LiveResponse = {
     code_version: string;
     uncertainty_calibration: string;
   };
+  generated_at?: string;
+  serving_mode?: "r2-batch-snapshot";
   stations: Station[];
 };
 
@@ -32,7 +38,7 @@ export type HealthResponse = {
   status: string;
   time: string;
   model: "ready" | "validated-results-ready" | "collecting-training-data";
-  forecast_serving?: "ready" | "pending";
+  forecast_serving?: "ready" | "snapshot" | "pending";
 };
 
 export type QualityResponse = {

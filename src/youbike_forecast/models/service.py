@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -80,12 +80,27 @@ class ForecastService:
         return json.loads(self.drivers_path.read_text(encoding="utf-8"))
 
     def forecasts(self) -> list[dict[str, Any]]:
+        return self.forecast_snapshot()["stations"]
+
+    def forecast_snapshot(self) -> dict[str, Any]:
         bundle, latest = self._load()
         predictions = self._predict(bundle, latest)
+        dry = latest.copy()
+        dry.loc[:, "forecast_precipitation"] = 0.0
+        dry.loc[:, "forecast_precipitation_probability"] = 10.0
+        heavy_rain = latest.copy()
+        heavy_rain.loc[:, "forecast_precipitation"] = 10.0
+        heavy_rain.loc[:, "forecast_precipitation_probability"] = 90.0
+        dry_predictions = self._predict(bundle, dry)
+        heavy_rain_predictions = self._predict(bundle, heavy_rain)
         uncertainty = float(bundle["conformal_absolute_error_q90"])
         output = []
         for position, (_, row) in enumerate(latest.iterrows()):
             prediction = float(np.clip(predictions[position], 0, row["capacity"]))
+            dry_prediction = float(np.clip(dry_predictions[position], 0, row["capacity"]))
+            heavy_rain_prediction = float(
+                np.clip(heavy_rain_predictions[position], 0, row["capacity"])
+            )
             output.append(
                 {
                     "source": row["source"],
@@ -96,15 +111,27 @@ class ForecastService:
                     "longitude": float(row["longitude"]),
                     "capacity": int(row["capacity"]),
                     "available_bikes": int(row["available_bikes"]),
+                    "available_docks": int(row["available_docks"]),
                     "observation_time": row["observation_time"].isoformat(),
                     "predicted_bikes": round(prediction, 2),
                     "prediction_low": round(max(0.0, prediction - uncertainty), 2),
                     "prediction_high": round(
                         min(float(row["capacity"]), prediction + uncertainty), 2
                     ),
+                    "dry_prediction": round(dry_prediction, 2),
+                    "heavy_rain_prediction": round(heavy_rain_prediction, 2),
                 }
             )
-        return output
+        return {
+            "schema_version": 1,
+            "generated_at": datetime.now(UTC).isoformat(),
+            "as_of": latest["observation_time"].max().isoformat(),
+            "count": len(output),
+            "model_status": "ready",
+            "serving_mode": "r2-batch-snapshot",
+            "model": self.metadata(),
+            "stations": output,
+        }
 
     def metadata(self) -> dict[str, str]:
         bundle, _ = self._load()
@@ -162,6 +189,11 @@ class ForecastService:
                 .groupby(["source", "station_id"], as_index=False, sort=False)
                 .tail(1)
                 .reset_index(drop=True)
+            )
+            latest_time = pd.Timestamp(latest["observation_time"].max())
+            freshness_cutoff = latest_time - pd.Timedelta("15min")
+            latest = latest.loc[latest["observation_time"] >= freshness_cutoff].reset_index(
+                drop=True
             )
             latest["station_key"] = (
                 latest["source"].astype(str) + ":" + latest["station_id"].astype(str)

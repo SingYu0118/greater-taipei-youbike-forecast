@@ -50,6 +50,7 @@ youbike-sync-r2 = "youbike_forecast.pipeline.r2_sync:main"
 youbike-train = "youbike_forecast.models.train:main"
 youbike-train-early = "youbike_forecast.models.early:main"
 youbike-fetch-mrt = "youbike_forecast.reference.mrt:main"
+youbike-publish-forecasts = "youbike_forecast.serving.publish:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/youbike_forecast"]

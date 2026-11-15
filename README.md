@@ -4,7 +4,7 @@
 
 An end-to-end machine-learning system that forecasts the number of available bikes at every Taipei and New Taipei YouBike station one hour ahead.
 
-> Status: official collection began at 2026-11-10 15:51:49 Asia/Taipei. The local scheduler and a cost-guarded Cloudflare Worker are collecting immutable history. Model results will only be published after the required time-ordered history and untouched final holdout gates pass.
+> Status: the formal 120-hour collection and untouched final evaluation are complete. CatBoost passed the pre-declared regression publication gate, and the public App serves a versioned R2 forecast snapshot for eligible stations.
 
 ## Live websites
 
@@ -13,8 +13,8 @@ An end-to-end machine-learning system that forecasts the number of available bik
 - Traditional Chinese documentation: <https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev/zh-Hant/>
 
 The public product uses a same-origin Cloudflare Edge API for current Taipei and New Taipei
-station inventory. It remains in `collecting-training-data` mode until the formal model gate
-passes and never substitutes a placeholder forecast.
+inventory, published one-hour forecasts, metrics, drivers, and weather what-if scenarios. It
+shows the forecast origin explicitly and never substitutes current inventory for a prediction.
 
 ## System goals
 
@@ -26,9 +26,9 @@ passes and never substitutes a placeholder forecast.
 
 ## Architecture at a glance
 
-The production design separates collection from the user-facing application. A scheduled collector writes immutable source snapshots; deterministic jobs rebuild Parquet datasets and time-safe features; multiple model families compete on expanding future windows; FastAPI serves the selected artifact; and a React application renders the network map, uncertainty, drivers, and scenarios.
+The production design separates collection from the user-facing application. A scheduled collector writes immutable source snapshots; deterministic jobs rebuild Parquet datasets and time-safe features; multiple model families compete on expanding future windows; an offline publisher writes the selected artifact's station predictions to R2; and a React application with a same-origin Worker API renders the network map, Metro filters, uncertainty, drivers, and scenarios. FastAPI remains the reference native-Python runtime.
 
-The Cloudflare Worker collector is deployed at `https://greater-taipei-youbike-collector.singyu-bravetalk.workers.dev` with a five-minute Cron and Standard-class R2 storage. It has a fixed collection deadline, a 1 MB object cap, conservative 10,000-write and 8 GB project stops, and an 80% warning state. The local LaunchAgent remains active as a temporary independent backup. The application reports `collecting-training-data` until the minimum history, completeness, and untouched final evaluation gates are met. It never substitutes a demo prediction for a trained result.
+The Cloudflare Worker collector ran at `https://greater-taipei-youbike-collector.singyu-bravetalk.workers.dev` with a five-minute Cron and Standard-class R2 storage. Its fixed deadline and conservative object, write, and storage guards stopped the formal collection window without requiring a laptop. The application now serves the validated forecast snapshot and never substitutes a demo prediction for a trained result.
 
 ## Local development
 

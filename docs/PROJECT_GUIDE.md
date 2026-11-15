@@ -6,7 +6,7 @@ This chapter explains the Greater Taipei YouBike forecasting system from the pro
 
 The system predicts the number of rentable bikes at every active Taipei and New Taipei YouBike station 60 minutes ahead. The main difficulty is not merely choosing a regression algorithm. The official APIs publish current station state but no complete, downloadable five-minute Greater Taipei inventory archive. The project therefore builds the evidence before training: a scheduled collector preserves immutable raw responses, a deterministic pipeline reconstructs a documented dataset, seven model families compete under forward-only validation, and the application publishes forecasts only after an untouched future test beats a strong persistence baseline.
 
-The current production collector is healthy, but the formal 120-hour evidence window is still incomplete. Engineering, synthetic tests, public-history practice, deployment, and validation logic are complete; real-history final model metrics, drivers, and what-if measurements remain pending by design.
+The formal 120-hour evidence window and model competition are complete. CatBoost passed the pre-declared regression gate on the untouched final holdout (MAE 2.026 versus 2.056 for persistence). The public App serves a versioned R2 batch snapshot for eligible stations, with the forecast origin, uncertainty, and weather what-if outputs visible to the user.
 
 ## 1. Research question
 
@@ -58,9 +58,11 @@ Open-Meteo forecast -------+       retries + validation + cost guard
                                     v
                        versioned model and report
                                     |
-                            FastAPI service
+                       offline forecast publisher
                                     |
-                         React + MapLibre product
+                    R2 snapshot + Worker Edge API
+                                    |
+                 React + MapLibre product + MRT filter
 ```
 
 The collector, analytical pipeline, model service, product, and documentation are separate layers. A failure can therefore be located without silently corrupting another layer.
@@ -151,22 +153,15 @@ These outputs explain model response, not causality. If rain changes a predictio
 
 ## 12. Product behaviour
 
-The React application always shows the live network, search, city switching, current empty/full risk, and collection progress. When all evidence gates pass, the same interface can show one-hour forecasts, uncertainty, model metrics, drivers, and station-level rain scenarios.
+The React application shows the network, bilingual MRT line/station filters, city switching, station search, one-hour forecasts, uncertainty, model metrics, drivers, and station-level rain scenarios. Selecting an MRT line filters nearby YouBike stations and fits the map; selecting or searching a Chinese/English MRT station moves the map and lists nearby current availability and +60-minute predictions.
 
-FastAPI validates both the model bundle and its evaluation report. Before the gates pass, forecast routes return HTTP 503 and the product shows `collecting-training-data`. The application never substitutes demo predictions for missing evidence.
+FastAPI validates both the model bundle and its evaluation report and remains the reference native-Python runtime. For the free public deployment, the offline publisher computes the CatBoost outputs and writes `control/latest-forecasts.json` to R2. The Worker serves only this versioned snapshot; the application shows the origin time and never substitutes demo predictions or current inventory for missing forecasts.
 
 ## 13. Current evidence status
 
-Snapshot observed at 2026-11-13 00:25 Asia/Taipei:
+The formal gate closed with 121.2 observed hours, 1,228 successful runs, four partial runs, and zero failed runs in the sanitized quality report. The final labelled dataset contains 4,858,440 rows from 3,401 stations; the untouched holdout contains 976,209 rows.
 
-- official start: 2026-11-10 15:51:49 Asia/Taipei;
-- observed history: 56.57 / 120 hours;
-- station completeness: 98.38%;
-- complete scheduled runs: 456;
-- partial failures: 0;
-- failures: 0.
-
-The system engineering is complete, but the formal model result is not yet known. The five-day point is approximately 2026-11-15 15:51:49 Asia/Taipei, assuming uninterrupted collection. This status is a dated snapshot; the product quality API is the live authority.
+CatBoost ranked first across three expanding validation folds. On the untouched final day it achieved MAE 2.026 and RMSE 3.500, versus persistence MAE 2.056 and RMSE 3.701. The average-error gate passed, while empty/full recall remained below persistence and is reported as a limitation rather than hidden.
 
 ## 14. What has and has not been proven
 
@@ -175,30 +170,18 @@ Proven now:
 - both city feeds can be collected, normalized, rebuilt, and served;
 - R2 collection continues independently of the laptop;
 - the seven-model pipeline, time splits, API gates, Docker image, frontend, documentation, and CI work;
-- public-history practice reaches a real model competition without contaminating formal paths.
+- CatBoost beats persistence on final MAE without using that holdout for model selection;
+- the public snapshot exposes station predictions, uncertainty, and controlled weather scenarios.
 
 Not yet proven:
 
-- which learned model wins on the official five-day history;
-- whether that model beats persistence on the untouched final day;
-- the final real-history SHAP drivers and rain what-if magnitude;
-- seasonal, event, or long-holiday robustness.
+- repeated-week, event, school-calendar, or long-holiday robustness;
+- whether a dedicated risk classifier can beat persistence on empty/full recall;
+- whether request-time inference is worth the additional hosted Python runtime cost.
 
-The isolated practice run selected CatBoost among learned models at MAE 4.210, while persistence achieved MAE 4.142. The learned model was 1.63% worse, so no publication gate passed. That result validates the machinery and shows why a strong baseline matters; it is not the formal assignment result.
+## 15. Reproduce and republish
 
-## 15. What to do next
-
-Before 72 hours, avoid changing collection cadence, schemas, gates, or model rules unless a real failure occurs. Monitor completeness and failures only.
-
-At 72 hours:
-
-```bash
-make early-diagnostic
-```
-
-Label the output preliminary. Do not deploy it as the production model.
-
-At 120 hours:
+Rebuild the completed formal result with:
 
 ```bash
 make sync-r2
@@ -206,25 +189,17 @@ make dataset
 make features
 make train
 make test
+youbike-publish-forecasts
 ```
-
-Then review data-quality gaps, fold stability, final-holdout improvement, risk recall, subgroup errors, drivers, and what-if results. Publish only if every gate passes. If persistence still wins, report that honestly and continue collection rather than weakening the test.
 
 ## 16. Recommended optimization roadmap
 
 ### Now
 
-- Keep the collector unchanged while it is healthy.
-- Add no new model solely to make the list longer.
-- Prepare result-table and chart templates without inserting invented values.
-- Rehearse the problem, leakage rule, baseline gate, and evidence boundary.
-
-### After five days
-
-- Diagnose the winner and weakest subgroups.
-- Tune only within rolling development folds if a justified small search is needed.
-- Calibrate risk thresholds and intervals without touching the final test repeatedly.
-- Publish the model, metrics, drivers, and what-if only after passing the gate.
+- monitor snapshot freshness and API schema compatibility;
+- calibrate risk thresholds without repeatedly touching the final holdout;
+- add a dedicated empty/full classification objective;
+- keep the published model, report, and forecast snapshot version-linked.
 
 ### After one month
 
@@ -236,5 +211,5 @@ Then review data-quality gaps, fold stability, final-holdout improvement, risk r
 
 ## 17. One-minute explanation
 
-“I built an end-to-end system that predicts each Greater Taipei YouBike station's available bikes one hour ahead. Because the official feeds provide current state rather than a complete historical archive, the first task was a reliable five-minute collector with immutable R2 history, manifests, and cost controls. The dataset pairs each station with itself one hour later and uses only information known at prediction time. Seven models and three baselines compete on expanding future windows with a purge gap and one untouched final day. The system publishes only if the winner beats the same-as-now baseline. The product, API, Docker, documentation, and gates are complete; the final model score waits for the pre-declared five-day evidence window.”
+“I built an end-to-end system that predicts each Greater Taipei YouBike station's available bikes one hour ahead. Because the official feeds provide current state rather than a complete historical archive, I first built a five-minute collector with immutable R2 history, manifests, and cost controls. Seven models and three baselines competed on expanding future windows with a purge gap and one untouched final day. CatBoost passed the pre-declared MAE gate at 2.026 bikes versus 2.056 for persistence. The public App now serves a versioned R2 prediction snapshot, exposes uncertainty and weather what-if results, and lets users navigate by bilingual MRT line and station.”
 

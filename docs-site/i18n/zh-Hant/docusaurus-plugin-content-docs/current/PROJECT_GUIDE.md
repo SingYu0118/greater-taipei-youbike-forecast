@@ -8,9 +8,9 @@
 
 乍看之下，這像是一個「選模型」的題目，但真正困難的地方在資料。官方 API 會告訴我們現在每站有幾台車，卻沒有提供一份完整、可直接下載的「雙北每五分鐘歷史庫存」。所以不能一開始就訓練模型，而是要先自己建立歷史資料。
 
-本專案因此完成了一整套流程：Cloudflare Worker 定時收集資料、R2 保存不可覆寫的原始紀錄、資料管線建立可重現資料集、七種模型在不偷看未來的時間驗證中競賽、FastAPI 控制模型是否有資格上線，React 地圖則把結果呈現給使用者。
+本專案因此完成了一整套流程：Cloudflare Worker 定時收集資料、R2 保存不可覆寫的原始紀錄、資料管線建立可重現資料集、七種模型在不偷看未來的時間驗證中競賽、FastAPI 驗證模型資格，React 地圖則把正式結果呈現給使用者。
 
-目前工程、測試、部署和驗證規則都已完成，但正式 120 小時資料還沒有收滿。因此現在可以說「系統已完成、正式證據正在累積」，不能提前說「某個模型已經正式勝出」。
+正式 120 小時證據窗與模型競賽已完成。CatBoost 在 untouched final holdout 的 MAE 是 2.026 輛，優於 persistence 的 2.056 輛，因此通過預先定義的 regression publication gate。公開 App 現在從 R2 讀取版本化逐站預測快照，並顯示 forecast origin、區間與天氣 what-if。
 
 ## 1. 我們到底要解決什麼問題？
 
@@ -76,9 +76,11 @@ Open-Meteo 天氣 ----------+       retry、檢查、成本防線
                                     v
                           模型檔與評估報告
                                     |
-                              FastAPI
+                           離線預測 publisher
                                     |
-                       React + MapLibre 地圖產品
+                       R2 snapshot + Worker API
+                                    |
+                 React + MapLibre + 雙語捷運篩選
 ```
 
 這樣分層的好處是，出錯時可以知道是哪一層：
@@ -348,38 +350,15 @@ Global SHAP 說明整體最常影響預測的 features；local SHAP 解釋某一
 
 ## 15. API 和前端怎麼運作？
 
-React 產品在模型還沒通過時，仍可顯示：
+React 產品目前會顯示雙北站點地圖、一小時預測、prediction interval、final metrics、global drivers 與天氣 what-if。使用者可先選捷運線，再選捷運站；地圖會自動縮放，並列出一公里內最近的 YouBike 站、目前可借數與 +60 分鐘預測。捷運站支援中文與英文搜尋，呈現格式固定為「中文站名（English Name）」。
 
-- 雙北即時站點地圖；
-- 搜尋與城市切換；
-- 現在的空站與滿站風險；
-- 正式收集進度與完整率；
-- 72 小時與 120 小時門檻。
-
-模型通過後，同一個產品才會顯示：
-
-- 一小時預測；
-- prediction interval；
-- final metrics；
-- global/local drivers；
-- 雨天 what-if。
-
-FastAPI 不只檢查模型檔存在，也會檢查 evaluation report、正式時間範圍、完整率和是否打敗 persistence。不符合就回 HTTP 503，前端顯示 `collecting-training-data`，不會拿 demo 數字冒充正式結果。
+FastAPI 會驗證 model bundle 與 evaluation report，保留作為原生 Python reference runtime。免費公開部署則由離線 publisher 執行 CatBoost，把 `control/latest-forecasts.json` 寫入 R2；Worker 只提供這份版本化快照。畫面顯示 forecast origin，不會拿 live inventory 冒充預測，也不宣稱 Worker 內直接跑 CatBoost。
 
 ## 16. 現在到底完成到哪裡？
 
-以下是 **2026-11-13 00:25 Asia/Taipei** 的即時快照：
+正式 quality report 顯示 121.2 小時、1,228 次成功、4 次 partial、0 次 failure。最終資料有 4,858,440 筆 labelled rows、3,401 個站點；untouched final holdout 有 976,209 筆。
 
-| 項目 | 目前狀態 |
-|---|---:|
-| 正式起始時間 | 2026-11-10 15:51:49 |
-| 已累積時間 | 56.57 / 120 小時 |
-| 站點完整率 | 98.38% |
-| 完整排程 | 456 次 |
-| Partial failure | 0 |
-| Failure | 0 |
-
-如果不中斷，120 小時會在約 **2026-11-15 15:51:49** 到達。這張表是有時間點的快照，最新狀態仍以產品的 quality API 為準。
+CatBoost 在三個 expanding folds 勝出；final MAE 2.026、RMSE 3.500，Persistence 為 MAE 2.056、RMSE 3.701。平均誤差 gate 已通過，但 CatBoost 的 empty/full recall 仍比 persistence 低，這是產品限制，不會隱藏。
 
 ### 已經能證明的事
 
@@ -388,14 +367,14 @@ FastAPI 不只檢查模型檔存在，也會檢查 evaluation report、正式時
 - Raw data 能重建 dataset 和 features；
 - 七模型競賽、時間 folds、final holdout 和 serving gates 已有測試；
 - Docker、FastAPI、React、文件站、GitHub Actions 都能運作；
-- 第三方歷史能在隔離區跑完整 practice pipeline。
+- CatBoost 沒有用 final holdout 選模，仍能在 final MAE 打敗 persistence；
+- 公開 R2 snapshot 已提供逐站預測、區間與受控天氣情境。
 
 ### 還不能宣稱的事
 
-- 正式五日資料的冠軍模型是誰；
-- 冠軍是否能在 final holdout 打敗 persistence；
-- 正式 SHAP drivers 和雨天 what-if 數值；
-- 不同季節、連假或大型活動的表現。
+- 跨多週、季節、連假或大型活動的穩定性；
+- 獨立風險分類器能否改善 empty/full recall；
+- request-time inference 是否值得新增付費 Python runtime。
 
 ## 17. 已經跑過的舊資料練習代表什麼？
 
@@ -422,26 +401,7 @@ Practice pipeline 使用公開台北歷史中的四天與 120 站：
 
 ## 18. 現在還需要做什麼優化？
 
-### 現在：以等待與監控為主
-
-Collector 目前 0 failure、完整率高於 95%，所以不要為了「看起來有繼續做」而修改 cadence、schema 或成本防線。正式資料收集中途改規則，反而會讓前後資料不一致。
-
-現在適合做：
-
-- 每天確認 quality API、failure 與 completeness；
-- 準備結果表、圖表空版與面試說法；
-- 熟悉 leakage、baseline、holdout 和 evidence gate；
-- 修正文件或 UI 文案，但不要改動正式資料定義。
-
-### 滿 72 小時：跑早期診斷
-
-```bash
-make early-diagnostic
-```
-
-這會用前 48 小時訓練、保留 60 分鐘 purge，再測第三天。它可以回答「真實資料是否已經有可學訊號」，但只能標示 preliminary，不能發布 production model。
-
-### 滿 120 小時：跑正式流程
+正式流程已完成，可用以下命令重建並重新發布：
 
 ```bash
 make sync-r2
@@ -449,30 +409,22 @@ make dataset
 make features
 make train
 make test
+youbike-publish-forecasts
 ```
 
-接著依序檢查：
+現階段優先事項是監控 snapshot freshness、API schema、empty/full risk recall，以及模型與 snapshot 的版本連結。不要反覆用 final holdout 調參；風險預警應建立獨立分類目標。
 
-1. 完整率、最大 gap、異常站點與 label match rate；
-2. 三折分數與 fold-to-fold stability；
-3. 冠軍模型 final holdout MAE；
-4. 是否真的打敗 persistence；
-5. empty/full recall；
-6. 不同時段、城市、天氣、容量的 subgroup errors；
-7. SHAP、permutation importance 和 rain what-if；
-8. 通過才發布 model bundle 與產品結果。
+每次重新訓練仍要檢查完整率、fold stability、final gate、empty/full recall、subgroup errors、drivers 與 what-if；只有新版本完整通過相同規則，才可以取代目前發布版本。
 
-如果 persistence 仍然最好，正確做法是如實報告並繼續收集，不是放寬規則或反覆偷看 final holdout。
+## 19. 短期與一個月後的優化方向
 
-## 19. 五日後與一個月後的優化方向
-
-### 五日後
+### 短期
 
 - 針對冠軍模型做小範圍、事先合理的 hyperparameter search；
 - 找出誤差最大的行政區、時段與站點類型；
 - 調整 empty/full 警示 threshold；
 - 檢查 prediction interval coverage；
-- 將正式 metrics、drivers、what-if 和模型版本顯示到 App 與文件。
+- 持續監控公開 snapshot 的 freshness 與 schema。
 
 所有 tuning 仍只能使用 development folds，不能反覆使用 final holdout。
 
@@ -487,7 +439,7 @@ make test
 
 ## 20. 面試時的一分鐘說法
 
-> 我做的是一套雙北 YouBike 站點庫存預測系統，預測每站一小時後有幾台車。因為官方只有即時狀態，沒有完整的雙北五分鐘歷史，所以我先做雲端 collector，每五分鐘把台北、新北和 issue-time 天氣保存成不可覆寫的 R2 歷史，並保留 manifest、checksum 和完整率。資料管線只使用預測當下已知的資訊，將同一站配對到一小時後，並使用 purge gap 避免 label 洩漏。七個模型和三個 baselines 在三個向前時間 folds 競賽，最後一天完全 untouched；只有 final MAE 打敗「跟現在一樣」才允許 API 發布。產品、API、Docker、文件和驗證規則都已完成，目前正在等待預先定義的五日正式資料門檻。
+> 我做的是一套雙北 YouBike 站點庫存預測系統，預測每站一小時後有幾台車。因為官方只有即時狀態，沒有完整的雙北五分鐘歷史，所以我先做雲端 collector，把台北、新北和 issue-time 天氣保存成不可覆寫的 R2 歷史。七個模型和三個 baselines 在三個向前時間 folds 競賽，最後一天完全 untouched。CatBoost 的 final MAE 是 2.026 輛，優於 persistence 的 2.056 輛，因此通過預先定義的 gate。公開 App 現在提供版本化逐站預測、不確定區間、天氣 what-if，以及中英雙語捷運線與站點導覽。
 
 ## 21. 你最需要記住的五句話
 
@@ -495,5 +447,5 @@ make test
 2. 最重要的技術原則是預測當下不能偷看未來。
 3. 複雜模型必須打敗「一小時後跟現在一樣」才有價值。
 4. 舊公開資料只能驗證流程，正式結果一定來自自己的雙北五日 R2 歷史。
-5. 現在不是什麼都沒做，而是工程已完成、正式統計證據還在按規則累積。
+5. 正式五日結果已發布，但跨週期與空／滿站風險仍是下一階段限制。
 

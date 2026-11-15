@@ -4,7 +4,7 @@ The FastAPI OpenAPI document is available at `/docs` when the backend is running
 
 ## `GET /health`
 
-Reports service time, health, and loaded model status. A model status of `collecting-training-data` is expected during the mandatory collection period and must not be presented as a forecast.
+Reports service time, health, and model-serving status. The public deployment currently returns `model: ready` and `forecast_serving: snapshot` after the formal publication gate has passed.
 
 ## `GET /api/v1/stations/live`
 
@@ -18,13 +18,15 @@ Response fields:
 {
   "as_of": "UTC timestamp",
   "count": 3446,
-  "model_status": "collecting-training-data",
+  "model_status": "ready",
   "stations": [
     {
       "source": "taipei",
       "station_id": "500101001",
-      "station_name": "MRT Technology Bldg. Sta.",
-      "district": "Daan Dist.",
+      "station_name": "捷運科技大樓站",
+      "station_name_en": "MRT Technology Bldg. Sta.",
+      "district": "大安區",
+      "district_en": "Daan Dist.",
       "latitude": 25.02605,
       "longitude": 121.5436,
       "capacity": 28,
@@ -37,6 +39,9 @@ Response fields:
 
 The endpoint returns HTTP 502 with a generic message when an official source is unavailable. Upstream details remain in server logs.
 
+Official `snaen` and `sareaen` values populate the English station and district fields. The client
+searches both languages and renders `Chinese name (English name)` when both are available.
+
 ## Evidence-gated model endpoints
 
 - `GET /api/v1/forecasts/latest`: latest forecast and bounded uncertainty range for every station, plus model ID, family, training time, code version, and interval-calibration method.
@@ -45,7 +50,7 @@ The endpoint returns HTTP 502 with a generic message when an official source is 
 - `POST /api/v1/stations/{station_id}/what-if`: controlled precipitation, rain-probability, or temperature scenario. The JSON body includes the required `source` (`taipei` or `new_taipei`) so station identity is unambiguous.
 - `GET /api/v1/data/quality`: collection completeness, freshness, scheduler outcomes, and the 120-hour evidence gate.
 
-Forecast and what-if endpoints return HTTP 503 until every publication gate passes: artifacts exist, final-holdout MAE beats persistence, the official collection window reaches 120 hours, and snapshot completeness reaches 95%. Evaluation and driver reports remain separately inspectable after training for audit. The service never substitutes synthetic or demo predictions. A what-if response is explicitly labelled as model behaviour rather than a causal estimate.
+The publication gate has passed for model `catboost-20261115T150527Z`. The public Worker reads `control/latest-forecasts.json` from R2 and serves the versioned station snapshot without loading the Python model in the edge isolate. `GET /api/v1/forecasts/latest` returns HTTP 503 only when that published object is missing or malformed. Evaluation and driver reports remain separately inspectable for audit. The service never substitutes synthetic or demo predictions. A what-if response is explicitly labelled as model behaviour rather than a causal estimate.
 
-`GET /api/v1/data/quality` reports only the official evidence window. Until `COLLECTION_START_AT` is set, official coverage and scheduler counts remain zero; retained development snapshots are reported separately and do not advance the gate.
+`GET /api/v1/data/quality` reports only the official evidence window. Retained development snapshots are reported separately and never advance the completed formal gate.
 

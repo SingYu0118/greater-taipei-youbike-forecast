@@ -4,7 +4,7 @@
 
 本專案是一套端到端機器學習系統，預測台北市與新北市每個 YouBike 站點一小時後的可借車數。
 
-> 狀態：官方收集始於 2026-11-10 15:51:49 Asia/Taipei。本地 scheduler 與具成本防線的 Cloudflare Worker 正在收集不可變歷史。模型結果只會在時序歷史足夠、且未觸碰的 final holdout 門檻通過後發佈。
+> 狀態：正式 120 小時收集與 untouched final evaluation 已完成。CatBoost 通過預先定義的 regression gate，公開 App 已提供版本化 R2 逐站預測快照。
 
 ## 正式網站
 
@@ -12,7 +12,7 @@
 - 英文技術文件：<https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev>
 - 繁中技術文件：<https://greater-taipei-youbike-docs.singyu-bravetalk.workers.dev/zh-Hant/>
 
-公開產品使用同源 Cloudflare Edge API 讀取台北與新北目前站點庫存。正式模型門檻通過前維持 `collecting-training-data`，絕不以假預測替代模型結果。
+公開產品使用同源 Cloudflare Edge API 讀取雙北目前庫存、正式逐站預測、metrics、drivers 與天氣 what-if。它會顯示 forecast origin，絕不以目前庫存冒充預測。
 
 ## 系統目標
 
@@ -24,9 +24,9 @@
 
 ## 架構摘要
 
-Production design 將收集與使用者應用分離。Scheduler 寫入不可變 source snapshots；決定性 jobs 重建 Parquet 資料集與無洩漏 features；多個模型在向前時間窗競賽；FastAPI 服務勝出 artifact；React 顯示網路地圖、不確定性、drivers 與 scenarios。
+Production design 將收集與使用者應用分離。Scheduler 寫入不可變 source snapshots；決定性 jobs 重建 Parquet 資料集與無洩漏 features；多個模型在向前時間窗競賽；離線 publisher 把勝出 artifact 的逐站預測寫入 R2；React 與同源 Worker API 顯示地圖、雙語捷運篩選、不確定性、drivers 與 scenarios。FastAPI 保留為原生 Python reference runtime。
 
-Cloudflare Worker collector 已部署於 `https://greater-taipei-youbike-collector.singyu-bravetalk.workers.dev`，使用五分鐘 Cron 與 Standard-class R2。它具有固定停止時間、1 MB object cap、10,000 writes、8 GB project stop 與 80% warning。本地 LaunchAgent 作為臨時獨立備份。歷史、完整率與 final evaluation 門檻通過前，App 顯示 `collecting-training-data`，絕不用 demo prediction 取代真實模型。
+Cloudflare Worker collector 使用五分鐘 Cron 與 Standard-class R2 完成正式證據窗，並由固定停止時間、1 MB object cap、10,000 writes、8 GB project stop 與 80% warning 控制用量。CatBoost 已通過 final MAE gate；公開 App 讀取版本化 R2 forecast snapshot，絕不用 demo prediction 取代真實模型。
 
 ## 本地開發
 
